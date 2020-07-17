@@ -18,7 +18,7 @@ template <typename ElementType>
 class BTreeList{
  public:
 
-  BTreeList(size_t size = 0, size_t limit = 256);
+  BTreeList(size_t size = 0, size_t limit = 256, size_t T_parameter);
 
   void Insert(const unsigned int index, const ElementType& e);
 
@@ -40,6 +40,7 @@ class BTreeList{
   _FileSavingManager<ElementType> _file_manager;
   _Node<ElementType> _in_memory_node;
   size_t _size;
+  size_t _T_parameter;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,10 +48,10 @@ class BTreeList{
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename ElementType>
-BTreeList<ElementType>::BTreeList(size_t size, size_t limit)
+BTreeList<ElementType>::BTreeList(size_t size, size_t limit, size_t T_parameter)
   : _size(size),
     _file_manager("./data"),
-    _in_memory_node() {
+    _T_parameter(T_parameter) {
   _in_memory_node._info._elements_cnt = 0;
   _in_memory_node._parent_link = -1;
   _file_manager.SetNode(0, _in_memory_node);
@@ -70,18 +71,19 @@ void BTreeList<ElementType>::Insert(
   _Node<ElementType> curr_node;
 
   bool found = false;
+  unsigned int in_node_index;
 
   do {
     curr_node = _file_manager.GetNode(curr_file_pos);
-    unsigned int child_index = 0;
+    in_node_index = 0;
     while (
-        indexes_on_the_left + curr_node._children_cnts[child_index] + 1 < index
+      indexes_on_the_left + curr_node._children_cnts[in_node_index] + 1 < index
     ) {
-      indexes_on_the_left += curr_node._children_cnts[child_index] + 1;
-      ++child_index;
+      indexes_on_the_left += curr_node._children_cnts[in_node_index] + 1;
+      ++in_node_index;
     }
-    if (!curr_node._list_flag) {
-      curr_file_pos = curr_node._links[child_index];
+    if (!curr_node.IsList()) {
+      curr_file_pos = curr_node._children_cnts[in_node_index];
       path_indexes.push_back(curr_file_pos);
     } else {
       found = true;
@@ -96,59 +98,31 @@ void BTreeList<ElementType>::Insert(
 
 
   while(!finished) {
-    curr_node._elements.insert(curr_node._elements.begin() + element_index,
-                               element_to_insert);
-    curr_node._links[element_index] = link_before_inserted; // Just change link
-    curr_node._links.insert(curr_node._links.begin() + element_index + 1,
-                            link_after_inserted);
+    curr_node.Insert(in_node_index, element_to_insert);
+    curr_node.SetLink(link_before_inserted, in_node_index); // Just change link
+    curr_node.InsertLink(element_to_insert, in_node_index + 1);
 
-    if (curr_node._type != NODE_TYPES::ROOT) {
-      if (curr_node._elements.size() >=
-          _file_manager._node_params._elements_cnt) {     // insertion into regular node
-        element_to_insert = curr_node._elements[/*middle_element*/];
-        _Node<ElementType> new_node_to_add(
-            std::vector<ElementType>(
-                curr_node._elements.begin() + curr_node._elements.size() / 2
-                    + 1, // From next after middle element to the end
-                curr_node._elements.end()
-            ),
-            std::vector<unsigned int>(
-                curr_node._links.begin() + curr_node._links.size() / 2
-                    + 1, // From link after middle element to the end
-                curr_node._links.end()
-            ),
-            std::vector<unsigned int>(
-                curr_node._children_cnts.begin()
-                    + curr_node._children_cnts.size() / 2
-                    + 1, // From link after middle elemet to the end
-                curr_node._children_cnts.end()
-            )
-        );  // TODO: be sure about edges
-        curr_node = _Node<ElementType>(
-            std::vector<ElementType>(
-                curr_node._elements.begin(),  // From beginning to the middle without include
-                curr_node._elements.begin() + curr_node._elements.size() / 2 + 1
-            ),
-            std::vector<unsigned int>(
-                curr_node._links.begin(),  // From beginning to the link before middle
-                curr_node._links.end() + curr_node._links.size() / 2 + 1
-            ),
-            std::vector<unsigned int>(  // From beginning to the link before middle
-                curr_node._children_cnts.begin(),
-                curr_node._children_cnts.end()
-                    + curr_node._children_cnts.size() / 2 + 1
-            )
-        );
-        link_after_inserted = _file_manager._AddNewNode(new_node_to_add);
+    if (curr_node._elements.size() == _T_parameter * 2 - 1) {  // insertion into regular node
+      if (!path_indexes.empty()) {
+        element_to_insert = curr_node.GetMiddleElement();
+        _Node<ElementType> new_node_to_add = curr_node.NodeFromSecondHalf();
+        curr_node = curr_node.NodeFromFirstHalf();
+        link_after_inserted = _file_manager.NewNode(new_node_to_add);
         link_before_inserted = *(path_indexes.rbegin());
         path_indexes.pop_back();
-
-        // curr node goes upper with element to insert
-        // changed to middle element of curr node
-        // go upper
+        curr_node = _file_manager.GetNode(*(path_indexes.rbegin()));
+        // TODO: unroot or not to use root flags
+      } else { // gone upper then root
+        _Node<ElementType> new_root;
+        new_root.Insert(element_to_insert, 0);
+        new_root.InsertLink(link_before_inserted, 0);
+        new_root.InsertLink(link_after_inserted, 1);
+        new_root.SetIsRoot(true);
+        _root_link = _file_manager.NewNode(new_root);
+        finished = true;
       }
-    } else {  // insertion into ROOT
-
+    } else {
+      finished = true;
     }
   }
 }

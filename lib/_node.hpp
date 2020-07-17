@@ -24,7 +24,15 @@ class _Node{
 
   void Set(const _ElementType& e, unsigned int i);
 
+  void SetLink(unsigned int l, unsigned int i);
+
+  void SetChildrenCnt(unsigned int cc, unsigned int i);
+
   _ElementType Get(unsigned int i) const;
+
+  unsigned int GetLink(unsigned int i) const;
+
+  unsigned int GetChildrenCnt(unsigned int i) const;
 
   void Insert(const _ElementType& e, unsigned int i);
 
@@ -38,11 +46,17 @@ class _Node{
 
   _ElementType Extract(unsigned int i);
 
-  bool IsRoot();
+  _Node<_ElementType> NodeFromFirstHalf();
+
+  _Node<_ElementType> NodeFromSecondHalf();
+
+  _ElementType GetMiddleElement();
+
+  bool IsRoot() const;
 
   void SetIsRoot(bool flag_to_set);
 
-  bool IsList();
+  bool IsList() const;
 
   void SetIsList(bool flag_to_set);
 
@@ -95,8 +109,28 @@ void _Node<_ElementType>::Set(const _ElementType &e, unsigned int i) {
 }
 
 template <typename _ElementType>
+void _Node<_ElementType>::SetLink(unsigned int l, unsigned int i) {
+  _links[i] = l;
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::SetChildrenCnt(unsigned int cc, unsigned int i) {
+  _children_cnts[i] = cc;
+}
+
+template <typename _ElementType>
 _ElementType _Node<_ElementType>::Get(unsigned int i) const {
   return _elements[i];
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::GetLink(unsigned int i) const {
+  return _links[i];
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::GetChildrenCnt(unsigned int i) const {
+  return _children_cnts[i];
 }
 
 template <typename _ElementType>
@@ -140,5 +174,50 @@ _ElementType _Node<_ElementType>::Extract(unsigned int i) {
   _info._elements_cnt = _elements.size();
   return element;
 }
+
+template <typename _ElementType>
+_Node<_ElementType> _Node<_ElementType>::NodeFromFirstHalf() {
+  return _Node<_ElementType> {
+    _elements.begin(), _elements.begin() + _elements.size() / 2,
+    _links.begin(), _links.begin() + _links.size() / 2,
+    _children_cnts.begin(), _children_cnts.size() / 2
+  };
+}
+
+template <typename _ElementType>
+_Node<_ElementType> _Node<_ElementType>::NodeFromSecondHalf() {
+  return _Node<_ElementType> {
+    _elements.end() - _elements.size() / 2, _elements.end(),
+    _links.end() - _links.size() / 2, _links.end(),
+    _children_cnts.end() - _children_cnts.size() / 2, _children_cnts.size()
+  };
+}
+
+template <typename _ElementType>
+_ElementType _Node<_ElementType>::GetMiddleElement() {
+  return _elements.begin() + _elements.size() / 2 + 1;
+}
+
+template <typename _ElementType>
+bool _Node<_ElementType>::IsRoot() const {
+  return _flags & 1;
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::SetIsRoot(bool flag_to_set) {
+  _flags ^= 1;
+}
+
+template <typename _ElementType>
+bool _Node<_ElementType>::IsList() const {
+  return _flags & 2;  // 2 is 10_2
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::SetIsList(bool flag_to_set) {
+  _flags ^= 2;  // 2 is 10_2
+}
+
+
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_
