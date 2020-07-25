@@ -28,6 +28,12 @@ class _Node{
 
   void SetChildrenCnt(unsigned int cc, unsigned int i);
 
+  void PushBack(const _ElementType& e);
+
+  void PushBackLink(unsigned int l);
+
+  void PushBackChildrenCnt(unsigned int cc);
+
   _ElementType Get(unsigned int i) const;
 
   unsigned int GetLink(unsigned int i) const;
@@ -46,19 +52,27 @@ class _Node{
 
   _ElementType Extract(unsigned int i);
 
+  unsigned int ExtractBackChildrenCnt();
+
+  unsigned int ExtractBackLink();
+
+  _ElementType ExtractBack();
+
   _Node<_ElementType> NodeFromFirstHalf();
 
   _Node<_ElementType> NodeFromSecondHalf();
 
   _ElementType GetMiddleElement();
 
+  void ConnectWith(_ElementType e, const _Node<_ElementType> &other);
+
   bool IsRoot() const;
 
   void SetIsRoot(bool flag_to_set);
 
-  bool IsList() const;
+  bool IsLeaf() const;
 
-  void SetIsList(bool flag_to_set);
+  void SetIsLeaf(bool flag_to_set);
 
   //////////////////////////////////////////////////////////////////////////////
   // Parameters structs declaration                                           //
@@ -83,8 +97,11 @@ class _Node{
   // Friend classes                                                           //
   //////////////////////////////////////////////////////////////////////////////
 
-  template<typename ElementType>
+  template <typename ElementType>
   friend class BTreeList;
+
+  template <typename ElementType>
+  friend class _FileSavingManager;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -103,6 +120,10 @@ _Node<_ElementType>::_Node(
     _links(links),
     _children_cnts(children_cnts) {}
 
+////////////////////////////////////////////////////////////////////////////////
+// Setters                                                                    //
+////////////////////////////////////////////////////////////////////////////////
+
 template <typename _ElementType>
 void _Node<_ElementType>::Set(const _ElementType &e, unsigned int i) {
   _elements[i] = e;
@@ -118,6 +139,10 @@ void _Node<_ElementType>::SetChildrenCnt(unsigned int cc, unsigned int i) {
   _children_cnts[i] = cc;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Getters                                                                    //
+////////////////////////////////////////////////////////////////////////////////
+
 template <typename _ElementType>
 _ElementType _Node<_ElementType>::Get(unsigned int i) const {
   return _elements[i];
@@ -132,6 +157,29 @@ template <typename _ElementType>
 unsigned int _Node<_ElementType>::GetChildrenCnt(unsigned int i) const {
   return _children_cnts[i];
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Push backs                                                                 //
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename _ElementType>
+void _Node<_ElementType>::PushBack(const _ElementType &e) {
+  _elements.push_back(e);
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::PushBackLink(unsigned int l) {
+  _links.push_back(l);
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::PushBackChildrenCnt(unsigned int cc) {
+  _children_cnts.push_back(cc);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Inserts                                                                    //
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType>
 void _Node<_ElementType>::Insert(const _ElementType &e, unsigned int i) {
@@ -150,6 +198,10 @@ void _Node<_ElementType>::InsertChildrenCnt(unsigned int c, unsigned int i) {
   _children_cnts.insert(_children_cnts.begin() + i, c);
   _info._elements_cnt = _elements.size();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Extracts                                                                   //
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType>
 unsigned int _Node<_ElementType>::ExtractChildrenCnt(unsigned int i) {
@@ -175,6 +227,35 @@ _ElementType _Node<_ElementType>::Extract(unsigned int i) {
   return element;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Extract back                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::ExtractBackChildrenCnt() {
+  unsigned int cnt = _children_cnts.back();
+  _children_cnts.pop_back();
+  return cnt;
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::ExtractBackLink() {
+  unsigned int index = _links.back();
+  _links.pop_back();
+  return index;
+}
+
+template <typename _ElementType>
+_ElementType _Node<_ElementType>::ExtractBack() {
+  _ElementType element = _elements.back();
+  _elements.pop_back();
+  return element;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Separators                                                                 //
+////////////////////////////////////////////////////////////////////////////////
+
 template <typename _ElementType>
 _Node<_ElementType> _Node<_ElementType>::NodeFromFirstHalf() {
   return _Node<_ElementType> {
@@ -199,6 +280,18 @@ _ElementType _Node<_ElementType>::GetMiddleElement() {
 }
 
 template <typename _ElementType>
+void _Node<_ElementType>::ConnectWith(_ElementType e,
+                                      const _Node<_ElementType> &other) {
+  _elements.push_back(e);
+  _elements.insert(_elements.end(),
+                   other._elements.begin(), other._elements.end());
+  _links.insert(_links.end(), other._links.begin(), other._links.end());
+  _children_cnts.insert(_children_cnts.begin(),
+                        other._children_cnts.begin(),
+                        other._children_cnts.end());
+}
+
+template <typename _ElementType>
 bool _Node<_ElementType>::IsRoot() const {
   return _flags & 1;
 }
@@ -209,15 +302,13 @@ void _Node<_ElementType>::SetIsRoot(bool flag_to_set) {
 }
 
 template <typename _ElementType>
-bool _Node<_ElementType>::IsList() const {
+bool _Node<_ElementType>::IsLeaf() const {
   return _flags & 2;  // 2 is 10_2
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::SetIsList(bool flag_to_set) {
+void _Node<_ElementType>::SetIsLeaf(bool flag_to_set) {
   _flags ^= 2;  // 2 is 10_2
 }
-
-
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_

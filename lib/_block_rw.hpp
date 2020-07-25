@@ -11,12 +11,14 @@ class _BlockRW {
   // Functions                                                                //
   //////////////////////////////////////////////////////////////////////////////
 
+  _BlockRW();
+
   _BlockRW(std::shared_ptr<void*> mapped_file_ptr,
            size_t file_info_size,
            size_t block_size);
 
   template<typename TypeToRead>
-  TypeToRead* GetBlockPtr(unsigned int pos);
+  TypeToRead* GetBlockPtr(unsigned int pos) const;
 
   template<typename TypeToWrite>
   void WriteBlock(unsigned int pos, const TypeToWrite& element);
@@ -41,6 +43,8 @@ class _BlockRW {
   friend class _FileSavingManager;
 };
 
+_BlockRW::_BlockRW() {};
+
 _BlockRW::_BlockRW(
     std::shared_ptr<void*> mapped_file_ptr,
     size_t file_info_size,
@@ -50,7 +54,7 @@ _BlockRW::_BlockRW(
     _block_size(block_size) {}
 
 template<typename TypeToRead>
-TypeToRead* _BlockRW::GetBlockPtr(unsigned int pos) {
+TypeToRead* _BlockRW::GetBlockPtr(unsigned int pos) const {
   void* mapped_file = *_mapped_file_ptr;
   return (char*)mapped_file + _file_info_size +
          pos * _block_size;

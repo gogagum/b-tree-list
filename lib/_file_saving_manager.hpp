@@ -77,7 +77,7 @@ class _FileSavingManager{
   //////////////////////////////////////////////////////////////////////////////
 
   template<typename ElementType>
-  friend class BTree;
+  friend class BTreeList;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -88,18 +88,19 @@ template <typename _ElementType>
 _FileSavingManager<_ElementType>::_FileSavingManager(
     const std::string &destination,
     size_t T
-) : _destination(destination),
-    _T_parameter(T) {
-  _node_params._info_size = sizeof(_Node<_ElementType>::_NodeInfo);
+) {
+  _destination = destination;
+  _T_parameter = T;
+  _node_params._info_size = sizeof(struct _Node<_ElementType>::_NodeInfo);
   _page_size = 1024; // TODO: get this info while running
   _node_params._element_size = sizeof(_ElementType);
   _node_params._pages_cnt =
       ceil_div(_node_params._info_size +
       (_T_parameter * 2 - 1) * _node_params._element_size +
       _T_parameter * 2 * 8 /*links and children cnts*/, _page_size);
-
   _fd = open(_destination.c_str(), O_CREAT | O_RDWR);
-  _allocator(_mapped_file_ptr, _fd, _node_params._pages_cnt * _page_size);
+  _block_rw = _BlockRW(_mapped_file_ptr, sizeof(struct _Allocator<_ElementType>::_DataInfo), _page_size * _node_params._pages_cnt);
+  _allocator = _Allocator<_ElementType>(_mapped_file_ptr, _fd, _node_params._pages_cnt * _page_size);
 }
 
 template <typename _ElementType>
@@ -129,7 +130,7 @@ void _FileSavingManager<_ElementType>::SetNode(
 ) {
   void* ptr = _block_rw.GetBlockPtr<void>(pos);
   void* elements_starting_pos =
-      (char*)ptr + sizeof(_Node<_ElementType>::_NodeInfo);
+      (char*)ptr + sizeof(struct _Node<_ElementType>::_NodeInfo);
   void* links_starting_pos =
       (char*)elements_starting_pos +
       2 * _T_parameter * _node_params._element_size;
@@ -146,7 +147,7 @@ void _FileSavingManager<_ElementType>::SetNode(
     *(static_cast<uint32_t*>(links_starting_pos) + i) =
         node_to_set._links[i];
   }
-  for (unsigned int i = 0; i < node_to_set._cildren_cnts.size(); ++i) {
+  for (unsigned int i = 0; i < node_to_set._children_cnts.size(); ++i) {
     *(static_cast<uint32_t*>(children_cnts_starting_pos) + i) =
         node_to_set._children_cnts[i];
   }
@@ -190,11 +191,13 @@ unsigned int _FileSavingManager<_ElementType>::NewNode() {
 }
 
 template <typename _ElementType>
+void _FileSavingManager<_ElementType>::DeleteNode(unsigned int pos) {
 
+}
 
 template <typename _ElementType>
 _FileSavingManager<_ElementType>::~_FileSavingManager() {
-  if (!munmap(_mapped_file, _file_size)) {
+  if (!munmap(*_mapped_file_ptr, _file_size)) {
     // TODO: Error
   };
 }
