@@ -2,6 +2,9 @@
 // Created by gogagum on 16.07.2020.
 //
 
+#include <boost/iostreams/code_converter.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+
 #ifndef B_TREE_LIST_LIB__BLOCK_RW_HPP_
 #define B_TREE_LIST_LIB__BLOCK_RW_HPP_
 
@@ -13,9 +16,10 @@ class _BlockRW {
 
   _BlockRW();
 
-  _BlockRW(std::shared_ptr<void*> mapped_file_ptr,
-           size_t file_info_size,
-           size_t block_size);
+  _BlockRW(
+      const std::shared_ptr<boost::iostreams::mapped_file> &mapped_file_ptr,
+      size_t file_info_size,
+      size_t block_size);
 
   template<typename TypeToRead>
   TypeToRead* GetBlockPtr(unsigned int pos) const;
@@ -27,7 +31,7 @@ class _BlockRW {
   // Fields                                                                   //
   //////////////////////////////////////////////////////////////////////////////
 
-  std::shared_ptr<void*> _mapped_file_ptr;
+  std::shared_ptr<boost::iostreams::mapped_file> _mapped_file_ptr;
   size_t _block_size;  // The same as in allocator which uses this class.
 
   size_t _file_info_size;
@@ -46,7 +50,7 @@ class _BlockRW {
 _BlockRW::_BlockRW() {};
 
 _BlockRW::_BlockRW(
-    std::shared_ptr<void*> mapped_file_ptr,
+    const std::shared_ptr<boost::iostreams::mapped_file> &mapped_file_ptr,
     size_t file_info_size,
     size_t block_size)
   : _mapped_file_ptr(mapped_file_ptr),
@@ -55,15 +59,13 @@ _BlockRW::_BlockRW(
 
 template<typename TypeToRead>
 TypeToRead* _BlockRW::GetBlockPtr(unsigned int pos) const {
-  void* mapped_file = *_mapped_file_ptr;
-  return (char*)mapped_file + _file_info_size +
-         pos * _block_size;
+  return reinterpret_cast<TypeToRead*>(_mapped_file_ptr->data() + _file_info_size +
+         pos * _block_size);
 }
 
 template<typename TypeToWrite>
 void _BlockRW::WriteBlock(unsigned int pos, const TypeToWrite &element) {
-  void* mapped_file = *_mapped_file_ptr;
-  *((char*)mapped_file + _file_info_size + pos * _block_size) =
+  *(_mapped_file_ptr->data() + _file_info_size + pos * _block_size) =
       element;
 }
 

@@ -20,13 +20,14 @@ class _Node{
 
   _Node(const std::vector<_ElementType>& v,
         const std::vector<unsigned int>& links,
-        const std::vector<unsigned int>& children_cnts);
+        const std::vector<unsigned int>& children_cnts,
+        uint32_t flags = 0);
 
-  void Set(const _ElementType& e, unsigned int i);
+  void Set(unsigned int i, const _ElementType &e);
 
-  void SetLink(unsigned int l, unsigned int i);
+  void SetLink(unsigned int i, unsigned int l);
 
-  void SetChildrenCnt(unsigned int cc, unsigned int i);
+  void SetChildrenCnt(unsigned int i, unsigned int cc);
 
   void PushBack(const _ElementType& e);
 
@@ -40,11 +41,11 @@ class _Node{
 
   unsigned int GetChildrenCnt(unsigned int i) const;
 
-  void Insert(const _ElementType& e, unsigned int i);
+  void Insert(unsigned int i, const _ElementType &e);
 
-  void InsertLink(unsigned int l, unsigned int i);
+  void InsertLink(unsigned int i, unsigned int l);
 
-  void InsertChildrenCnt(unsigned int c, unsigned int i);
+  void InsertChildrenCnt(unsigned int i, unsigned int c);
 
   unsigned int ExtractChildrenCnt(unsigned int i);
 
@@ -66,28 +67,41 @@ class _Node{
 
   void ConnectWith(_ElementType e, const _Node<_ElementType> &other);
 
-  bool IsRoot() const;
+  bool GetIsRoot() const;
 
   void SetIsRoot(bool flag_to_set);
 
-  bool IsLeaf() const;
+  bool GetIsLeaf() const;
 
   void SetIsLeaf(bool flag_to_set);
 
+  bool GetIsRightestLeaf() const;
+
+  void SetIsRightestLeaf(bool flag_to_set);
+
+  unsigned int GetAllChildrenCnt();
+
   //////////////////////////////////////////////////////////////////////////////
-  // Parameters structs declaration                                           //
+  // Parameters structs and enums declaration                                 //
   //////////////////////////////////////////////////////////////////////////////
 
   struct _NodeInfo{
-    int _parent_link;
+    //int _parent_link;
     size_t _elements_cnt;
+    uint32_t _flags;
+  };
+
+  enum _Flags{
+    ROOT = 1,
+    LEAF = 2,
+    RIGHTESTS = 3
   };
 
   //////////////////////////////////////////////////////////////////////////////
   // Fields                                                                   //
   //////////////////////////////////////////////////////////////////////////////
 
-  uint32_t _flags;
+
   _NodeInfo _info;
   std::vector<_ElementType> _elements;
   std::vector<unsigned int> _links;
@@ -109,33 +123,40 @@ class _Node{
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType>
-_Node<_ElementType>::_Node() : _elements(std::vector<_ElementType>(0)) {}
+_Node<_ElementType>::_Node() : _elements(std::vector<_ElementType>(0)) {
+  _info._elements_cnt = 0;
+  _info._flags = 0;
+}
 
 template <typename _ElementType>
 _Node<_ElementType>::_Node(
     const std::vector<_ElementType>& v,
     const std::vector<unsigned int>& links,
-    const std::vector<unsigned int>& children_cnts)
+    const std::vector<unsigned int>& children_cnts,
+    uint32_t flags)
   : _elements(v),
     _links(links),
-    _children_cnts(children_cnts) {}
+    _children_cnts(children_cnts) {
+  _info._elements_cnt = _elements.size();
+  _info._flags = flags;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Setters                                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType>
-void _Node<_ElementType>::Set(const _ElementType &e, unsigned int i) {
+void _Node<_ElementType>::Set(unsigned int i, const _ElementType &e) {
   _elements[i] = e;
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::SetLink(unsigned int l, unsigned int i) {
+void _Node<_ElementType>::SetLink(unsigned int i, unsigned int l) {
   _links[i] = l;
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::SetChildrenCnt(unsigned int cc, unsigned int i) {
+void _Node<_ElementType>::SetChildrenCnt(unsigned int i, unsigned int cc) {
   _children_cnts[i] = cc;
 }
 
@@ -165,6 +186,7 @@ unsigned int _Node<_ElementType>::GetChildrenCnt(unsigned int i) const {
 template <typename _ElementType>
 void _Node<_ElementType>::PushBack(const _ElementType &e) {
   _elements.push_back(e);
+  ++_info._elements_cnt;
 }
 
 template <typename _ElementType>
@@ -182,21 +204,19 @@ void _Node<_ElementType>::PushBackChildrenCnt(unsigned int cc) {
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType>
-void _Node<_ElementType>::Insert(const _ElementType &e, unsigned int i) {
+void _Node<_ElementType>::Insert(unsigned int i, const _ElementType &e) {
   _elements.insert(_elements.begin() + i, e);
-  _info._elements_cnt = _elements.size();
+  ++_info._elements_cnt;
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::InsertLink(unsigned int l, unsigned int i) {
+void _Node<_ElementType>::InsertLink(unsigned int i, unsigned int l) {
   _links.insert(_links.begin() + i, l);
-  _info._elements_cnt = _elements.size();
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::InsertChildrenCnt(unsigned int c, unsigned int i) {
+void _Node<_ElementType>::InsertChildrenCnt(unsigned int i, unsigned int c) {
   _children_cnts.insert(_children_cnts.begin() + i, c);
-  _info._elements_cnt = _elements.size();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -207,7 +227,6 @@ template <typename _ElementType>
 unsigned int _Node<_ElementType>::ExtractChildrenCnt(unsigned int i) {
   unsigned int cnt = _children_cnts[i];
   _children_cnts.erase(_children_cnts.begin() + i);
-  _info._elements_cnt = _elements.size();
   return cnt;
 }
 
@@ -215,7 +234,6 @@ template <typename _ElementType>
 unsigned int _Node<_ElementType>::ExtractLink(unsigned int i) {
   unsigned int index = _links[i];
   _links.erase(_links.begin() + i);
-  _info._elements_cnt = _elements.size();
   return index;
 }
 
@@ -223,7 +241,7 @@ template <typename _ElementType>
 _ElementType _Node<_ElementType>::Extract(unsigned int i) {
   _ElementType element = _elements[i];
   _elements.erase(_elements.begin() + i);
-  _info._elements_cnt = _elements.size();
+  --_info._elements_cnt;
   return element;
 }
 
@@ -249,6 +267,7 @@ template <typename _ElementType>
 _ElementType _Node<_ElementType>::ExtractBack() {
   _ElementType element = _elements.back();
   _elements.pop_back();
+  --_info._elements_cnt;
   return element;
 }
 
@@ -258,25 +277,35 @@ _ElementType _Node<_ElementType>::ExtractBack() {
 
 template <typename _ElementType>
 _Node<_ElementType> _Node<_ElementType>::NodeFromFirstHalf() {
-  return _Node<_ElementType> {
-    _elements.begin(), _elements.begin() + _elements.size() / 2,
-    _links.begin(), _links.begin() + _links.size() / 2,
-    _children_cnts.begin(), _children_cnts.size() / 2
-  };
+  uint32_t first_half_flags = this->_info._flags;
+  first_half_flags = first_half_flags & ~(4UL);  // Set rightest_flag to false
+  return _Node<_ElementType> (
+    std::vector<_ElementType>(_elements.begin(),
+                              _elements.begin() + _elements.size() / 2),
+    std::vector<unsigned int>(_links.begin(),
+                              _links.begin() + _links.size() / 2),
+    std::vector<unsigned int>(_children_cnts.begin(),
+                              _children_cnts.begin() + _children_cnts.size() / 2),
+    first_half_flags
+  );
 }
 
 template <typename _ElementType>
 _Node<_ElementType> _Node<_ElementType>::NodeFromSecondHalf() {
-  return _Node<_ElementType> {
-    _elements.end() - _elements.size() / 2, _elements.end(),
-    _links.end() - _links.size() / 2, _links.end(),
-    _children_cnts.end() - _children_cnts.size() / 2, _children_cnts.size()
-  };
+  return _Node<_ElementType>(
+    std::vector<_ElementType>(_elements.end() - _elements.size() / 2,
+                              _elements.end()),
+    std::vector<unsigned int>(_links.end() - _links.size() / 2,
+                              _links.end()),
+    std::vector<unsigned int>(_children_cnts.end() - _children_cnts.size() / 2,
+                              _children_cnts.end()),
+    this->_info._flags
+  );
 }
 
 template <typename _ElementType>
 _ElementType _Node<_ElementType>::GetMiddleElement() {
-  return _elements.begin() + _elements.size() / 2 + 1;
+  return *(_elements.begin() + _elements.size() / 2);
 }
 
 template <typename _ElementType>
@@ -291,24 +320,48 @@ void _Node<_ElementType>::ConnectWith(_ElementType e,
                         other._children_cnts.end());
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Flags setters and getters                                                  //
+////////////////////////////////////////////////////////////////////////////////
+
 template <typename _ElementType>
-bool _Node<_ElementType>::IsRoot() const {
-  return _flags & 1;
+bool _Node<_ElementType>::GetIsRoot() const {
+  return _info._flags & 1;
 }
 
 template <typename _ElementType>
 void _Node<_ElementType>::SetIsRoot(bool flag_to_set) {
-  _flags ^= 1;
+  _info._flags ^= (-flag_to_set ^ _info._flags) & 1UL;
 }
 
 template <typename _ElementType>
-bool _Node<_ElementType>::IsLeaf() const {
-  return _flags & 2;  // 2 is 10_2
+bool _Node<_ElementType>::GetIsLeaf() const {
+  return _info._flags & 2;  // 2 is 10_2
 }
 
 template <typename _ElementType>
 void _Node<_ElementType>::SetIsLeaf(bool flag_to_set) {
-  _flags ^= 2;  // 2 is 10_2
+  _info._flags ^= (-flag_to_set ^ _info._flags) & (1UL << 1);
+}
+
+template <typename _ElementType>
+bool _Node<_ElementType>::GetIsRightestLeaf() const {
+  return _info._flags & 4;
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::SetIsRightestLeaf(bool flag_to_set) {
+  _info._flags ^= (-flag_to_set ^ _info._flags) & (1UL << 2);
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::GetAllChildrenCnt() {
+  unsigned int sum = 0;
+  for (auto i: _children_cnts) {
+    sum += i;
+  }
+  sum += _elements.size();
+  return sum;
 }
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_
