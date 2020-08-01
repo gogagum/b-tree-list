@@ -23,11 +23,23 @@ class _Node{
         const std::vector<unsigned int>& children_cnts,
         uint32_t flags = 0);
 
+  //////////////////////////////////////////////////////////////////////////////
+
   void Set(unsigned int i, const _ElementType &e);
 
-  void SetLink(unsigned int i, unsigned int l);
+  //void SetLink(unsigned int i, unsigned int l);
 
-  void SetChildrenCnt(unsigned int i, unsigned int cc);
+  //void SetChildrenCnt(unsigned int i, unsigned int cc);
+
+  void SetLinkAfter(unsigned int i, unsigned int l);
+
+  void SetLinkBefore(unsigned int i, unsigned int l);
+
+  void SetChildrenCntAfter(unsigned int i, unsigned int cc);
+
+  void SetChildrenCntBefore(unsigned int i, unsigned int cc);
+
+  //////////////////////////////////////////////////////////////////////////////
 
   void PushBack(const _ElementType& e);
 
@@ -35,23 +47,44 @@ class _Node{
 
   void PushBackChildrenCnt(unsigned int cc);
 
+  void PushBackTrio(const _ElementType& e, unsigned int l, unsigned int cc);
+
+  //////////////////////////////////////////////////////////////////////////////
+
   _ElementType Get(unsigned int i) const;
 
-  unsigned int GetLink(unsigned int i) const;
+  unsigned int GetLinkAfter(unsigned int i) const;
 
-  unsigned int GetChildrenCnt(unsigned int i) const;
+  unsigned int GetLinkBefore(unsigned int i) const;
+
+  unsigned int GetChildrenCntAfter(unsigned int i) const;
+
+  unsigned int GetChildrenCntBefore(unsigned int i) const;
+
+  //////////////////////////////////////////////////////////////////////////////
 
   void Insert(unsigned int i, const _ElementType &e);
 
   void InsertLink(unsigned int i, unsigned int l);
 
-  void InsertChildrenCnt(unsigned int i, unsigned int c);
+  void InsertChildrenCnt(unsigned int i, unsigned int cc);
 
-  unsigned int ExtractChildrenCnt(unsigned int i);
+  void InsertTrio(unsigned int i, const _ElementType &e,
+                  unsigned int l, unsigned int cc);
 
-  unsigned int ExtractLink(unsigned int i);
+  //////////////////////////////////////////////////////////////////////////////
 
   _ElementType Extract(unsigned int i);
+
+  unsigned int ExtractLinkAfter(unsigned int i);
+
+  unsigned int ExtractLinkBefore(unsigned int i);
+
+  unsigned int ExtractChildrenCntAfter(unsigned int i);
+
+  unsigned int ExtractChildrenCntBefore(unsigned int i);
+
+  //////////////////////////////////////////////////////////////////////////////
 
   unsigned int ExtractBackChildrenCnt();
 
@@ -59,13 +92,19 @@ class _Node{
 
   _ElementType ExtractBack();
 
+  //////////////////////////////////////////////////////////////////////////////
+
   _Node<_ElementType> NodeFromFirstHalf();
 
   _Node<_ElementType> NodeFromSecondHalf();
 
   _ElementType GetMiddleElement();
 
+  //////////////////////////////////////////////////////////////////////////////
+
   void ConnectWith(_ElementType e, const _Node<_ElementType> &other);
+
+  //////////////////////////////////////////////////////////////////////////////
 
   bool GetIsRoot() const;
 
@@ -79,14 +118,19 @@ class _Node{
 
   void SetIsRightestLeaf(bool flag_to_set);
 
+  //////////////////////////////////////////////////////////////////////////////
+
   unsigned int GetAllChildrenCnt();
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  size_t Size() const;
 
   //////////////////////////////////////////////////////////////////////////////
   // Parameters structs and enums declaration                                 //
   //////////////////////////////////////////////////////////////////////////////
 
   struct _NodeInfo{
-    //int _parent_link;
     size_t _elements_cnt;
     uint32_t _flags;
   };
@@ -94,7 +138,7 @@ class _Node{
   enum _Flags{
     ROOT = 1,
     LEAF = 2,
-    RIGHTESTS = 3
+    RIGHTESTS = 4
   };
 
   //////////////////////////////////////////////////////////////////////////////
@@ -116,6 +160,11 @@ class _Node{
 
   template <typename ElementType>
   friend class _FileSavingManager;
+
+  template <typename ElementType>
+  friend _Node<ElementType> Connect(const _Node<ElementType> &left_node,
+                                    const _Node<ElementType> &right_node,
+                                    const ElementType element);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -151,12 +200,23 @@ void _Node<_ElementType>::Set(unsigned int i, const _ElementType &e) {
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::SetLink(unsigned int i, unsigned int l) {
+void _Node<_ElementType>::SetLinkAfter(unsigned int i, unsigned int l) {
+  _links[i + 1] = l;
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::SetLinkBefore(unsigned int i, unsigned int l) {
   _links[i] = l;
 }
 
 template <typename _ElementType>
-void _Node<_ElementType>::SetChildrenCnt(unsigned int i, unsigned int cc) {
+void _Node<_ElementType>::SetChildrenCntAfter(unsigned int i, unsigned int cc) {
+  _children_cnts[i + 1] = cc;
+}
+
+template <typename _ElementType>
+void _Node<_ElementType>::SetChildrenCntBefore(unsigned int i,
+                                               unsigned int cc) {
   _children_cnts[i] = cc;
 }
 
@@ -170,12 +230,22 @@ _ElementType _Node<_ElementType>::Get(unsigned int i) const {
 }
 
 template <typename _ElementType>
-unsigned int _Node<_ElementType>::GetLink(unsigned int i) const {
+unsigned int _Node<_ElementType>::GetLinkAfter(unsigned int i) const {
+  return _links[i + 1];
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::GetLinkBefore(unsigned int i) const {
   return _links[i];
 }
 
 template <typename _ElementType>
-unsigned int _Node<_ElementType>::GetChildrenCnt(unsigned int i) const {
+unsigned int _Node<_ElementType>::GetChildrenCntAfter(unsigned int i) const {
+  return _children_cnts[i + 1];
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::GetChildrenCntBefore(unsigned int i) const {
   return _children_cnts[i];
 }
 
@@ -199,6 +269,15 @@ void _Node<_ElementType>::PushBackChildrenCnt(unsigned int cc) {
   _children_cnts.push_back(cc);
 }
 
+template <typename _ElementType>
+void _Node<_ElementType>::PushBackTrio(const _ElementType &e,
+                                       unsigned int l,
+                                       unsigned int cc) {
+  PushBack(e);
+  PushBackLink(l);
+  PushBackChildrenCnt(cc);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Inserts                                                                    //
 ////////////////////////////////////////////////////////////////////////////////
@@ -219,23 +298,19 @@ void _Node<_ElementType>::InsertChildrenCnt(unsigned int i, unsigned int c) {
   _children_cnts.insert(_children_cnts.begin() + i, c);
 }
 
+template <typename _ElementType>
+void _Node<_ElementType>::InsertTrio(unsigned int i,
+                                     const _ElementType &e,
+                                     unsigned int l,
+                                     unsigned int cc) {
+  Insert(i, e);
+  InsertLink(i, l);
+  InsertChildrenCnt(i, cc);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Extracts                                                                   //
 ////////////////////////////////////////////////////////////////////////////////
-
-template <typename _ElementType>
-unsigned int _Node<_ElementType>::ExtractChildrenCnt(unsigned int i) {
-  unsigned int cnt = _children_cnts[i];
-  _children_cnts.erase(_children_cnts.begin() + i);
-  return cnt;
-}
-
-template <typename _ElementType>
-unsigned int _Node<_ElementType>::ExtractLink(unsigned int i) {
-  unsigned int index = _links[i];
-  _links.erase(_links.begin() + i);
-  return index;
-}
 
 template <typename _ElementType>
 _ElementType _Node<_ElementType>::Extract(unsigned int i) {
@@ -243,6 +318,34 @@ _ElementType _Node<_ElementType>::Extract(unsigned int i) {
   _elements.erase(_elements.begin() + i);
   --_info._elements_cnt;
   return element;
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::ExtractLinkAfter(unsigned int i) {
+  unsigned int index = _links[i + 1];
+  _links.erase(_links.begin() + i + 1);
+  return index;
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::ExtractLinkBefore(unsigned int i) {
+  unsigned int index = _links[i];
+  _links.erase(_links.begin() + i);
+  return index;
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::ExtractChildrenCntAfter(unsigned int i) {
+  unsigned int index = _children_cnts[i + 1];
+  _children_cnts.erase(_children_cnts.begin() + i + 1);
+  return index;
+}
+
+template <typename _ElementType>
+unsigned int _Node<_ElementType>::ExtractChildrenCntBefore(unsigned int i) {
+  unsigned int index = _children_cnts[i];
+  _children_cnts.erase(_children_cnts.begin() + i);
+  return index;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -354,6 +457,8 @@ void _Node<_ElementType>::SetIsRightestLeaf(bool flag_to_set) {
   _info._flags ^= (-flag_to_set ^ _info._flags) & (1UL << 2);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 template <typename _ElementType>
 unsigned int _Node<_ElementType>::GetAllChildrenCnt() {
   unsigned int sum = 0;
@@ -363,5 +468,26 @@ unsigned int _Node<_ElementType>::GetAllChildrenCnt() {
   sum += _elements.size();
   return sum;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename _ElementType>
+size_t _Node<_ElementType>::Size() const {
+  return _elements.size();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Friend functions                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename ElementType>
+_Node<ElementType> Connect(const _Node<ElementType> &left_node,
+                           const _Node<ElementType> &right_node,
+                           const ElementType e) {
+  _Node<ElementType> node_to_return = left_node;
+  node_to_return.ConnectWith(e, right_node);
+  return node_to_return;
+};
+
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_

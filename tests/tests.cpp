@@ -51,13 +51,19 @@ TEST(simple_tests, insert_plus_set) {
   EXPECT_EQ(test_list.Get(2), 3);
 }
 
+TEST(simple_tests, simple_extract) {
+  BTreeList<int> test_list;
+  for (int i = 0; i < 5; ++i) {
+    test_list.Insert(0, i);
+  }
+  EXPECT_EQ(test_list.Get(0), 4);
+  auto extracted = test_list.Extract(0);
+  EXPECT_EQ(test_list.Size(), 4);
+  EXPECT_EQ(extracted, 4);
+}
+
 TEST(not_simple_test, inserts) {
   BTreeList<int> test_list(0, 256, 2);
-  //for (int i = 0; i < 16; ++i) {
-  //  test_list.Insert(i, i + 1);
-  //  test_list.print_all_nodes();
-  //}
-  //test_list.print_all_nodes();
   for (int i = 0; i < 16; ++i) {
     EXPECT_EQ(test_list.Get(i), i + 1);
   }
