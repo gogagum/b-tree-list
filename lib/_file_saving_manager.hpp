@@ -175,7 +175,7 @@ unsigned int _FileSavingManager<_ElementType>::NewNode() {
 
 template <typename _ElementType>
 void _FileSavingManager<_ElementType>::DeleteNode(unsigned int pos) {
-
+  _allocator.DeleteNode(pos);
 }
 
 template <typename _ElementType>

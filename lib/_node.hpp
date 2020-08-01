@@ -25,22 +25,6 @@ class _Node{
 
   //////////////////////////////////////////////////////////////////////////////
 
-  void Set(unsigned int i, const _ElementType &e);
-
-  //void SetLink(unsigned int i, unsigned int l);
-
-  //void SetChildrenCnt(unsigned int i, unsigned int cc);
-
-  void SetLinkAfter(unsigned int i, unsigned int l);
-
-  void SetLinkBefore(unsigned int i, unsigned int l);
-
-  void SetChildrenCntAfter(unsigned int i, unsigned int cc);
-
-  void SetChildrenCntBefore(unsigned int i, unsigned int cc);
-
-  //////////////////////////////////////////////////////////////////////////////
-
   void PushBack(const _ElementType& e);
 
   void PushBackLink(unsigned int l);
@@ -51,15 +35,15 @@ class _Node{
 
   //////////////////////////////////////////////////////////////////////////////
 
-  _ElementType Get(unsigned int i) const;
+  _ElementType& IthElement(unsigned int i);
 
-  unsigned int GetLinkAfter(unsigned int i) const;
+  unsigned int& LinkAfter(unsigned int i);
 
-  unsigned int GetLinkBefore(unsigned int i) const;
+  unsigned int& LinkBefore(unsigned int i);
 
-  unsigned int GetChildrenCntAfter(unsigned int i) const;
+  unsigned int& ChildrenCntAfter(unsigned int i);
 
-  unsigned int GetChildrenCntBefore(unsigned int i) const;
+  unsigned int& ChildrenCntBefore(unsigned int i);
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -191,61 +175,31 @@ _Node<_ElementType>::_Node(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Setters                                                                    //
-////////////////////////////////////////////////////////////////////////////////
-
-template <typename _ElementType>
-void _Node<_ElementType>::Set(unsigned int i, const _ElementType &e) {
-  _elements[i] = e;
-}
-
-template <typename _ElementType>
-void _Node<_ElementType>::SetLinkAfter(unsigned int i, unsigned int l) {
-  _links[i + 1] = l;
-}
-
-template <typename _ElementType>
-void _Node<_ElementType>::SetLinkBefore(unsigned int i, unsigned int l) {
-  _links[i] = l;
-}
-
-template <typename _ElementType>
-void _Node<_ElementType>::SetChildrenCntAfter(unsigned int i, unsigned int cc) {
-  _children_cnts[i + 1] = cc;
-}
-
-template <typename _ElementType>
-void _Node<_ElementType>::SetChildrenCntBefore(unsigned int i,
-                                               unsigned int cc) {
-  _children_cnts[i] = cc;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Getters                                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType>
-_ElementType _Node<_ElementType>::Get(unsigned int i) const {
+_ElementType& _Node<_ElementType>::IthElement(unsigned int i) {
   return _elements[i];
 }
 
 template <typename _ElementType>
-unsigned int _Node<_ElementType>::GetLinkAfter(unsigned int i) const {
+unsigned int& _Node<_ElementType>::LinkAfter(unsigned int i) {
   return _links[i + 1];
 }
 
 template <typename _ElementType>
-unsigned int _Node<_ElementType>::GetLinkBefore(unsigned int i) const {
+unsigned int& _Node<_ElementType>::LinkBefore(unsigned int i) {
   return _links[i];
 }
 
 template <typename _ElementType>
-unsigned int _Node<_ElementType>::GetChildrenCntAfter(unsigned int i) const {
+unsigned int& _Node<_ElementType>::ChildrenCntAfter(unsigned int i) {
   return _children_cnts[i + 1];
 }
 
 template <typename _ElementType>
-unsigned int _Node<_ElementType>::GetChildrenCntBefore(unsigned int i) const {
+unsigned int& _Node<_ElementType>::ChildrenCntBefore(unsigned int i) {
   return _children_cnts[i];
 }
 

@@ -76,6 +76,11 @@ class BTreeList{
                              unsigned int parent_file_pos,
                              unsigned int in_parent_pos);
 
+  void _CorrectChildrenCnts(std::vector<unsigned int> &file_pos_path,
+                            std::vector<unsigned int> &in_node_indexes_path,
+                            int to_change);
+
+  void _Rebuild();
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -118,10 +123,10 @@ void BTreeList<ElementType>::Insert(const unsigned int index,
     _Node<ElementType> curr_node = _file_manager.GetNode(curr_file_pos);
 
     curr_node.Insert(curr_innode_index, element_to_insert);
-    curr_node.SetLinkBefore(curr_innode_index, link_before_inserted); // Just change link
+    curr_node.LinkBefore(curr_innode_index) = link_before_inserted; // Just change link
     curr_node.InsertLink(curr_innode_index + 1, link_after_inserted);
-    curr_node.SetChildrenCntBefore(curr_innode_index,
-                                   children_cnt_before_inserted);
+    curr_node.ChildrenCntBefore(curr_innode_index) =
+        children_cnt_before_inserted;
     curr_node.InsertChildrenCnt(
         curr_innode_index + 1, children_cnt_after_inserted);
 
@@ -156,17 +161,11 @@ void BTreeList<ElementType>::Insert(const unsigned int index,
       }
     } else {  // Just inserted
       _file_manager.SetNode(curr_file_pos, curr_node);
-      if (!file_pos_path.empty()) {  // curr_node is not a root
-        unsigned int index_to_correct = in_node_index_path.back();
-        unsigned int node_to_correct_pos= file_pos_path.back();
-        _Node<ElementType> node_to_correct =
-            _file_manager.GetNode(node_to_correct_pos);
-        ++node_to_correct._children_cnts[index_to_correct];
-        _file_manager.SetNode(node_to_correct_pos, node_to_correct);
-      }
+      _CorrectChildrenCnts(file_pos_path, in_node_index_path, 1);
       break;  // No need to go upper
     }
   } while (!file_pos_path.empty());
+
 }
 
 template <typename ElementType>
@@ -175,7 +174,7 @@ void BTreeList<ElementType>::Set(const unsigned int index, const ElementType& e)
   unsigned int in_node_index;
 
   _Node<ElementType> node = _FindElement(index, file_pos, in_node_index);
-  node.Set(in_node_index, e);
+  node.IthElement(in_node_index) = e;
   _file_manager.SetNode(file_pos, node);
 }
 
@@ -205,7 +204,7 @@ ElementType BTreeList<ElementType>::Extract(const unsigned int index) {
   } else {
     _Node<ElementType> node_to_change =
         _file_manager.GetNode(file_pos_path.back());
-    element_to_extract = node_to_change.Get(in_node_indexes_path.back());
+    element_to_extract = node_to_change.IthElement(in_node_indexes_path.back());
     unsigned int pos_to_save = file_pos_path.back();
     _FindAppropriateInLeafElement(file_pos_path, in_node_indexes_path);
   }
@@ -279,9 +278,9 @@ void BTreeList<ElementType>::_FindPathToLeafByIndex(
     while (
         in_node_index < curr_node._elements.size() &&
         elements_to_skip -
-        static_cast<int>(curr_node.GetChildrenCntBefore(in_node_index)) - 1 >= 0
+        static_cast<int>(curr_node.ChildrenCntBefore(in_node_index)) - 1 >= 0
     ) {
-      elements_to_skip -= curr_node.GetChildrenCntBefore(in_node_index) + 1;
+      elements_to_skip -= curr_node.ChildrenCntBefore(in_node_index) + 1;
       ++in_node_index;
     }
     in_node_indexes_path.push_back(in_node_index);
@@ -316,19 +315,19 @@ _Node<ElementType> BTreeList<ElementType>::_FindPathByIndex(
     while (
         in_node_index < curr_node.Size() &&
         elements_to_skip -
-        static_cast<int>(curr_node.GetChildrenCntBefore(in_node_index)) - 1 >= 0
+        static_cast<int>(curr_node.ChildrenCntBefore(in_node_index)) - 1 >= 0
     ) {
-      elements_to_skip -= (curr_node.GetChildrenCntBefore(in_node_index) + 1);
+      elements_to_skip -= (curr_node.ChildrenCntBefore(in_node_index) + 1);
       ++in_node_index;
     }
     in_node_indexes_path.push_back(in_node_index);
     if (
         in_node_index < curr_node.Size() &&
-        elements_to_skip == curr_node.GetChildrenCntBefore(in_node_index)
+        elements_to_skip == curr_node.ChildrenCntBefore(in_node_index)
     ) {
       found = true;
     } else {
-      file_pos_path.push_back(curr_node.GetLinkBefore(in_node_index));
+      file_pos_path.push_back(curr_node.LinkBefore(in_node_index));
       curr_node = _file_manager.GetNode(file_pos_path.back());
     }
   } while (!found);
@@ -345,11 +344,11 @@ void BTreeList<ElementType>::_FindAppropriateInLeafElement(
     std::vector<unsigned int> &in_node_indexes_path
 ) {
   _Node<ElementType> curr_node = _file_manager.GetNode(file_pos_path.back());
-  file_pos_path.push_back(curr_node.GetLinkAfter(in_node_indexes_path.back()));
+  file_pos_path.push_back(curr_node.LinkAfter(in_node_indexes_path.back()));
   curr_node = _file_manager.GetNode(file_pos_path.back());
   in_node_indexes_path.push_back(0);
   while (!curr_node.GetIsLeaf()) {
-    file_pos_path.push_back(curr_node.GetLinkBefore(0));
+    file_pos_path.push_back(curr_node.LinkBefore(0));
     curr_node = _file_manager.GetNode(file_pos_path.back());
     in_node_indexes_path.push_back(0);
   }
@@ -385,6 +384,7 @@ ElementType BTreeList<ElementType>::_ExtractFromLeaf(
       }
     }
   }
+  _CorrectChildrenCnts(file_pos_path, in_node_indexes_path, -1);
   return element_to_return;
 }
 
@@ -404,11 +404,11 @@ bool BTreeList<ElementType>::_CorrectNodeOnExtract(
   bool with_left = true;
 
   if (in_parent_index == 0) {
-    neighbour_node_file_pos = parent_node.GetLinkAfter(in_parent_index);
+    neighbour_node_file_pos = parent_node.LinkAfter(in_parent_index);
     neighbour_node = _file_manager.GetNode(neighbour_node_file_pos);
     with_left = false;
   } else {  // in_parent_index > 0
-    neighbour_node_file_pos = parent_node.GetLinkBefore(in_parent_index);
+    neighbour_node_file_pos = parent_node.LinkBefore(in_parent_index);
     neighbour_node = _file_manager.GetNode(neighbour_node_file_pos);
   }
 
@@ -426,8 +426,8 @@ bool BTreeList<ElementType>::_CorrectNodeOnExtract(
       parent_node.ExtractLinkAfter(in_parent_index);
       parent_node.ExtractChildrenCntAfter(in_parent_index);
     }
-    parent_node.SetChildrenCntBefore(in_parent_index,
-                                     connected_node.GetAllChildrenCnt());
+    parent_node.ChildrenCntBefore(in_parent_index) =
+        connected_node.GetAllChildrenCnt();
     _file_manager.DeleteNode(neighbour_node_file_pos);
     _file_manager.SetNode(file_pos, connected_node);
     _file_manager.SetNode(parent_file_pos, parent_node);
@@ -440,26 +440,27 @@ bool BTreeList<ElementType>::_CorrectNodeOnExtract(
       ElementType element_from_neighbour = neighbour_node.ExtractBack();
       unsigned int link_from_neighbour = neighbour_node.ExtractBackLink();
       unsigned int cc_from_neighbour = neighbour_node.ExtractBackChildrenCnt();
-      ElementType element_from_parent = parent_node.Get(in_parent_index - 1);
+      ElementType element_from_parent =
+          parent_node.IthElement(in_parent_index - 1);
       node.InsertTrio(0, element_from_parent,
                       link_from_neighbour, cc_from_neighbour);
-      parent_node.Set(in_parent_index - 1, element_from_neighbour);
-      parent_node.SetChildrenCntBefore(in_parent_index - 1,
-                                       neighbour_node.GetAllChildrenCnt());
-      parent_node.SetChildrenCntAfter(in_parent_index - 1,
-                                      node.GetAllChildrenCnt());
+      parent_node.IthElement(in_parent_index - 1) = element_from_neighbour;
+      parent_node.ChildrenCntBefore(in_parent_index - 1) =
+          neighbour_node.GetAllChildrenCnt();
+      parent_node.ChildrenCntAfter(in_parent_index - 1) =
+          node.GetAllChildrenCnt();
     } else {  // with right
       ElementType element_from_neighbour = neighbour_node.Extract(0);
       unsigned int link_from_neighbour = neighbour_node.ExtractLinkBefore(0);
       unsigned int cc_from_neighbour = neighbour_node.ExtractChildrenCntBefore(0);
-      ElementType element_from_parent = parent_node.Get(in_parent_index);
+      ElementType element_from_parent = parent_node.IthElement(in_parent_index);
       node.PushBackTrio(element_from_parent,
                         link_from_neighbour, cc_from_neighbour);
-      parent_node.Set(in_parent_index, element_from_neighbour);
-      parent_node.SetChildrenCntBefore(in_parent_index,
-                                       node.GetAllChildrenCnt());
-      parent_node.SetChildrenCntAfter(in_parent_index,
-                                      neighbour_node.GetAllChildrenCnt());
+      parent_node.IthElement(in_parent_index) = element_from_neighbour;
+      parent_node.ChildrenCntBefore(in_parent_index) =
+          node.GetAllChildrenCnt();
+      parent_node.ChildrenCntAfter(in_parent_index) =
+          neighbour_node.GetAllChildrenCnt();
     }
     _file_manager.SetNode(parent_file_pos, parent_node);
     _file_manager.SetNode(file_pos, node);
@@ -469,6 +470,48 @@ bool BTreeList<ElementType>::_CorrectNodeOnExtract(
   return finished;
 }
 
+template <typename ElementType>
+void BTreeList<ElementType>::_CorrectChildrenCnts(
+    std::vector<unsigned int> &file_pos_path,
+    std::vector<unsigned int> &in_node_indexes_path,
+    int to_change
+) {
+  while (!file_pos_path.empty()) {
+    _Node<ElementType> node_to_correct =
+        _file_manager.GetNode(file_pos_path.back());
+    node_to_correct.SetChildrenCntBefore(in_node_indexes_path.back()) +=
+        to_change;
+    _file_manager.SetNode(file_pos_path.back(), node_to_correct);
+    file_pos_path.pop_back();
+    in_node_indexes_path.pop_back();
+  }
+}
+
+template <typename ElementType>
+void BTreeList<ElementType>::_Rebuild() {
+  _FileSavingManager<ElementType> new_file_manager("data_tmp", _T_parameter);
+  unsigned int last_added_node_pos = 1;
+  unsigned int curr_pos = 0;
+  new_file_manager.NewNode();
+  new_file_manager.SetNode(curr_pos, _file_manager.GetNode(_root_link));
+  do {
+    _Node<ElementType> curr_node = new_file_manager.GetNode(curr_pos);
+    if (!curr_node.GetIsLeaf()) {
+      for (unsigned int i = 0; i < curr_node.Size() + 1; ++i) {
+        _Node<ElementType> node_to_copy =
+            _file_manager.GetNode(curr_node.LinkBefore(i));
+        unsigned int pos_to_set_node = new_file_manager.NewNode();
+        new_file_manager.SetNode(pos_to_set_node, node_to_copy);
+        ++last_added_node_pos;
+        curr_node.LinkBefore(i) = pos_to_set_node;
+      }
+      new_file_manager.SetNode(curr_pos, curr_node);
+    }
+    ++curr_pos;
+  } while (curr_pos < last_added_node_pos);
+  // delete old file manager
+  // rename file and change _file_manager
+}
 
 #ifdef DEBUG
 template <typename ElementType>
@@ -489,10 +532,10 @@ void BTreeList<ElementType>::print_all_nodes() {
     }
     std::cout << "\n";
     if (node.GetIsLeaf()) {
-      std::cout << "Leaf: \n";
+      std::cout << "Leaf. \n";
     }
     if (node.GetIsRoot()) {
-      std::cout << "Root: \n";
+      std::cout << "Root. \n";
     }
     std::cout << '\n';
   }
