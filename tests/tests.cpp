@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
+// #include <gmock/gmock.h>
 #include "../lib/b_tree_list.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,13 +11,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST(constructor_tests, no_arguments) {
-  BTreeList<int> test_list;
+  BTreeList<int> test_list("no_arguments_test_data");
   EXPECT_EQ(test_list.Size(), 0);
+  EXPECT_EQ(boost::filesystem::remove("no_arguments_test_data"), true);
 }
 
 TEST(constrector_tests, size_argument) {
-  BTreeList<int> test_list(5);
+  BTreeList<int> test_list("size_argument_test_data", 5);
   EXPECT_EQ(test_list.Size(), 5);
+
+  EXPECT_EQ(boost::filesystem::remove("size_argument_test_data"), true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,22 +28,26 @@ TEST(constrector_tests, size_argument) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST(simple_tests, insert_test) {
-  BTreeList<int> test_list;
+  BTreeList<int> test_list("simple_insert_test_data");
   test_list.Insert(0, 3);
   EXPECT_EQ(test_list.Size(), 1);
   EXPECT_EQ(test_list.Get(0), 3);
+
+  EXPECT_EQ(boost::filesystem::remove("simple_insert_test_data"), true);
 }
 
 TEST(simple_tests, two_inserts) {
-  BTreeList<int> test_list;
+  BTreeList<int> test_list("two_inserts_test_data");
   test_list.Insert(0, 4);
   test_list.Insert(1, 2);
   EXPECT_EQ(test_list.Size(), 2);
   EXPECT_EQ(test_list.Get(1), 2);
+
+  EXPECT_EQ(boost::filesystem::remove("two_inserts_test_data"), true);
 }
 
 TEST(simple_tests, insert_plus_set) {
-  BTreeList<int> test_list;
+  BTreeList<int> test_list("insert_plus_set_data");
   test_list.Insert(0, 3);
   test_list.Insert(0, 2);
   test_list.Insert(0, 0);
@@ -49,10 +56,12 @@ TEST(simple_tests, insert_plus_set) {
   EXPECT_EQ(test_list.Get(0), 1);
   EXPECT_EQ(test_list.Get(1), 2);
   EXPECT_EQ(test_list.Get(2), 3);
+
+  EXPECT_EQ(boost::filesystem::remove("insert_plus_set_data"), true);
 }
 
 TEST(simple_tests, simple_extract) {
-  BTreeList<int> test_list;
+  BTreeList<int> test_list("simple_extract_data");
   for (int i = 0; i < 5; ++i) {
     test_list.Insert(0, i);
   }
@@ -60,12 +69,71 @@ TEST(simple_tests, simple_extract) {
   auto extracted = test_list.Extract(0);
   EXPECT_EQ(test_list.Size(), 4);
   EXPECT_EQ(extracted, 4);
+
+  EXPECT_EQ(boost::filesystem::remove("simple_extract_data"), true);
 }
 
-TEST(not_simple_test, inserts) {
-  BTreeList<int> test_list(0, 256, 2);
+TEST(not_simple_tests, inserts) {
+  BTreeList<int, 2> test_list("inserts_test_data", 0);
+  for (int i = 0; i < 16; ++i) {
+    test_list.Insert(i, i + 1);
+  }
   for (int i = 0; i < 16; ++i) {
     EXPECT_EQ(test_list.Get(i), i + 1);
   }
+
+  EXPECT_EQ(boost::filesystem::remove("inserts_test_data"), true);
 }
 
+TEST(simple_tests, restore_from_file) {
+  BTreeList<int, 200>* test_list = new BTreeList<int, 200>("restore_from_file");
+  test_list->Insert(0, 3);
+  test_list->Insert(1, 4);
+  delete test_list;
+  test_list = new BTreeList<int, 200>("restore_from_file");
+  EXPECT_EQ(test_list->Size(), 2);
+  EXPECT_EQ(test_list->Get(0), 3);
+  EXPECT_EQ(test_list->Get(1), 4);
+  delete test_list;
+
+  EXPECT_EQ(boost::filesystem::remove("restore_from_file"), true);
+}
+
+TEST(not_simple_tests, many_elements) {
+  std::vector<int> elements = {2, 35, 567, 2, 3, 2, 5, 7, 2, 3, 56, 8, 8, 5, 3, 2, 2, 4, 6, 89, 0, 4, 3, 2, 2, 356, 678, 0, 0, 54};
+  BTreeList<int, 10> test_list("many_elements_test_data");
+  for (auto i: elements) {
+    test_list.Insert(test_list.Size(), i);
+  }
+  for (unsigned i = 0; i < elements.size(); ++i) {
+    EXPECT_EQ(elements[i], test_list.Get(i));
+  }
+
+  EXPECT_EQ(boost::filesystem::remove("many_elements_test_data"), true);
+}
+
+TEST(not_simple_tests, many_extracts) {
+  std::vector<int> elements;
+  BTreeList<int, 20> test_list("many_extracts_test_data");
+  for (unsigned i = 0; i < 200; ++i) {
+    elements.push_back(static_cast<int>(i));
+    test_list.Insert(test_list.Size(), static_cast<int>(i));
+  }
+
+  for (unsigned i = 0; i < 200; ++i) {
+    std::cout << test_list.Get(i) << '\n';
+  }
+
+  for (unsigned i = 0; i < 100; ++i) {
+    elements.erase(elements.begin() + i);
+    std::cout << test_list.Extract(i) << "\n";
+  }
+
+  EXPECT_EQ(test_list.Size(), 100);
+
+  for (unsigned i = 0; i < 100; ++i) {
+    EXPECT_EQ(test_list.Get(i), elements[i]);
+  }
+
+  EXPECT_EQ(boost::filesystem::remove("many_extracts_test_data"), true);
+}
