@@ -11,7 +11,7 @@
 typedef uint64_t file_pos_t;
 typedef int64_t signed_file_pos_t;
 
-struct _DataInfo{
+struct DataInfo{
   signed_file_pos_t _stack_head_pos;
   file_pos_t _free_tail_start;
   file_pos_t _max_blocks_cnt;

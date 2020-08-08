@@ -11,15 +11,15 @@
 typedef uint64_t file_pos_t;
 typedef int64_t signed_file_pos_t;
 
-class _BlockRW {
+class BlockRW {
  private:
   //////////////////////////////////////////////////////////////////////////////
   // Functions                                                                //
   //////////////////////////////////////////////////////////////////////////////
 
-  _BlockRW();
+  BlockRW();
 
-  _BlockRW(
+  BlockRW(
       const std::shared_ptr<boost::iostreams::mapped_file> &mapped_file_ptr,
       size_t file_info_size,
       size_t block_size);
@@ -28,7 +28,7 @@ class _BlockRW {
   TypeToRead* GetBlockPtr(file_pos_t pos) const;
 
   template <typename ElementType, size_t T>
-  struct _Node<ElementType, T>::_NodeInfo* GetInfoPtr(file_pos_t pos) const;
+  struct Node<ElementType, T>::_NodeInfo* GetInfoPtr(file_pos_t pos) const;
 
   template<typename ElementType, size_t T>
   ElementType* GetNodeElementPtr(file_pos_t pos, unsigned index) const;
@@ -55,16 +55,16 @@ class _BlockRW {
   // Friend classes                                                           //
   //////////////////////////////////////////////////////////////////////////////
 
-  template <typename __ElementType>
-  friend class _Allocator;
+  template <typename ElementType>
+  friend class Allocator;
 
   template <typename ElementType, size_t T>
-  friend class _FileSavingManager;
+  friend class FileSavingManager;
 };
 
-_BlockRW::_BlockRW() {};
+BlockRW::BlockRW() {};
 
-_BlockRW::_BlockRW(
+BlockRW::BlockRW(
     const std::shared_ptr<boost::iostreams::mapped_file> &mapped_file_ptr,
     size_t file_info_size,
     size_t block_size)
@@ -73,46 +73,46 @@ _BlockRW::_BlockRW(
     _block_size(block_size) {}
 
 template<typename TypeToRead>
-TypeToRead* _BlockRW::GetBlockPtr(file_pos_t pos) const {
+TypeToRead* BlockRW::GetBlockPtr(file_pos_t pos) const {
   return reinterpret_cast<TypeToRead*>(_mapped_file_ptr->data() +
       _file_info_size + pos * _block_size);
 }
 
 template<typename ElementType, size_t T>
-struct _Node<ElementType, T>::_NodeInfo* _BlockRW::GetInfoPtr(
+struct Node<ElementType, T>::_NodeInfo* BlockRW::GetInfoPtr(
     file_pos_t pos
 ) const {
-  return reinterpret_cast<struct _Node<ElementType, T>::_NodeInfo*>(
-      GetBlockPtr<struct _Node<ElementType, T>::_NodeInfo>(pos)
+  return reinterpret_cast<struct Node<ElementType, T>::_NodeInfo*>(
+      GetBlockPtr<struct Node<ElementType, T>::_NodeInfo>(pos)
   );
 };
 
 template<typename ElementType, size_t T>
-ElementType* _BlockRW::GetNodeElementPtr(file_pos_t pos, unsigned index) const {
+ElementType* BlockRW::GetNodeElementPtr(file_pos_t pos, unsigned index) const {
   return reinterpret_cast<ElementType*>(
-      GetBlockPtr<char>(pos) + _Node<ElementType, T>::elements_offset +
+      GetBlockPtr<char>(pos) + Node<ElementType, T>::elements_offset +
       sizeof(ElementType) * index
   );
 }
 
 template<typename ElementType, size_t T>
-file_pos_t* _BlockRW::GetNodeLinkPtr(file_pos_t pos, unsigned index) const {
+file_pos_t* BlockRW::GetNodeLinkPtr(file_pos_t pos, unsigned index) const {
   return reinterpret_cast<file_pos_t*>(
-      GetBlockPtr<char>(pos) + _Node<ElementType, T>::links_offset +
+      GetBlockPtr<char>(pos) + Node<ElementType, T>::links_offset +
       sizeof(file_pos_t) * index
   );
 }
 
 template<typename ElementType, size_t T>
-size_t* _BlockRW::GetNodeCCPtr(file_pos_t pos, unsigned index) const {
+size_t* BlockRW::GetNodeCCPtr(file_pos_t pos, unsigned index) const {
   return reinterpret_cast<size_t*>(
-      GetBlockPtr<char>(pos) + _Node<ElementType, T>::cc_offset +
+      GetBlockPtr<char>(pos) + Node<ElementType, T>::cc_offset +
       sizeof(size_t) * index
   );
 }
 
 template<typename TypeToWrite>
-void _BlockRW::WriteBlock(file_pos_t pos, const TypeToWrite &element) {
+void BlockRW::WriteBlock(file_pos_t pos, const TypeToWrite &element) {
   *(_mapped_file_ptr->data() + _file_info_size + pos * _block_size) =
       element;
 }

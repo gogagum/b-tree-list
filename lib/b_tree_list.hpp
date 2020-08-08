@@ -5,9 +5,9 @@
 #include <vector>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include "_node.hpp"
-#include "_file_saving_manager.hpp"
-#include "_data_info.hpp"
+#include "node.hpp"
+#include "file_saving_manager.hpp"
+#include "data_info.hpp"
 
 #ifndef B_TREE_LIST_LIBRARY_H
 #define B_TREE_LIST_LIBRARY_H
@@ -20,7 +20,7 @@ template <typename ElementType, size_t T = 200>
 class BTreeList{
  public:
 
-  BTreeList(const std::string &filename, size_t size = 0);
+  explicit BTreeList(const std::string &filename, size_t size = 0);
 
   void Insert(unsigned index, const ElementType& e);
 
@@ -30,7 +30,7 @@ class BTreeList{
 
   ElementType Get(unsigned index);
 
-  size_t Size() const;
+  [[nodiscard]] size_t Size() const;
 
   ~BTreeList();
 
@@ -39,27 +39,27 @@ class BTreeList{
   // Private fields                                                           //
   //////////////////////////////////////////////////////////////////////////////
 
-  std::shared_ptr<_DataInfo> _data_info_ptr;
+  std::shared_ptr<DataInfo> _data_info_ptr;
 
-  _Node<ElementType, T> _in_memory_node;
-  _FileSavingManager<ElementType, T> _file_manager;
+  Node<ElementType, T> _in_memory_node;
+  FileSavingManager<ElementType, T> _file_manager;
 
   //////////////////////////////////////////////////////////////////////////////
   // Private methods                                                          //
   //////////////////////////////////////////////////////////////////////////////
 
-  unsigned _FindInNodeIndex(const _Node<ElementType, T> &node,
+  unsigned _FindInNodeIndex(const Node<ElementType, T> &node,
                             int64_t &elements_to_skip);
 
-  _Node<ElementType, T> _FindElement(unsigned index,
-                                     file_pos_t &file_pos,
-                                     unsigned &index_to_operate);
+  Node<ElementType, T> _FindElement(unsigned index,
+                                    file_pos_t &file_pos,
+                                    unsigned &index_to_operate);
 
   void _FindPathToLeafByIndex(unsigned index,
                               std::vector<file_pos_t> &file_pos_path,
                               std::vector<unsigned> &indexes_path);
 
-  _Node<ElementType, T> _FindPathByIndex(
+  Node<ElementType, T> _FindPathByIndex(
       unsigned index,
       std::vector<file_pos_t> &file_pos_path,
       std::vector<unsigned> &indexes_path
@@ -74,22 +74,24 @@ class BTreeList{
                                std::vector<unsigned> &indexes_path);
 
   void _MoveElementFromLeftNeighbour(
-      _Node<ElementType, T> &node,
-      _Node<ElementType, T> &neighbour_node,
-      _Node<ElementType, T> &parent_node,
+      Node<ElementType, T> &node,
+      Node<ElementType, T> &neighbour_node,
+      Node<ElementType, T> &parent_node,
       unsigned &in_parent_index
   );
 
   void _MoveElementFromRightNeighbour(
-      _Node<ElementType, T> &node,
-      _Node<ElementType, T> &neighbour_node,
-      _Node<ElementType, T> &parent_node,
+      Node<ElementType, T> &node,
+      Node<ElementType, T> &neighbour_node,
+      Node<ElementType, T> &parent_node,
       unsigned &in_parent_index
   );
 
-  bool _CorrectNodeOnExtract(file_pos_t file_pos,
+  bool _CorrectNodeOnExtract(Node<ElementType, T> &node,
+                             Node<ElementType, T> &parent_node,
+                             file_pos_t file_pos,
                              file_pos_t parent_file_pos,
-                              unsigned in_parent_pos);
+                             unsigned in_parent_index);
 
   void _CorrectChildrenCnts(std::vector<file_pos_t> &file_pos_path,
                             std::vector<unsigned> &in_node_indexes_path,
@@ -105,7 +107,7 @@ class BTreeList{
 template <typename ElementType, size_t T>
 BTreeList<ElementType, T>::BTreeList(const std::string &filename, size_t size)
  : _in_memory_node(),
-   _data_info_ptr(std::make_shared<_DataInfo>()),
+   _data_info_ptr(std::make_shared<DataInfo>()),
    _file_manager(filename, _in_memory_node, _data_info_ptr) {
   for (unsigned i = 0; i < size; ++i) {
     Insert(0, 0);
@@ -131,7 +133,7 @@ void BTreeList<ElementType, T>::Insert(unsigned index, const ElementType &e) {
     file_pos_path.pop_back();
     indexes_path.pop_back();
 
-    _Node<ElementType, T> curr_node = _file_manager.GetNode(curr_file_pos);
+    Node<ElementType, T> curr_node = _file_manager.GetNode(curr_file_pos);
 
     curr_node.Insert(curr_innode_index, element_to_insert);
     curr_node.SetLinks(curr_innode_index,
@@ -142,8 +144,8 @@ void BTreeList<ElementType, T>::Insert(unsigned index, const ElementType &e) {
     if (curr_node.Size() >= T * 2 - 1) {
       element_to_insert = curr_node.GetMiddleElement();
       // Prepare halves
-      _Node<ElementType, T> first_half_node = curr_node.NodeFromFirstHalf();
-      _Node<ElementType, T> second_half_node = curr_node.NodeFromSecondHalf();
+      Node<ElementType, T> first_half_node = curr_node.NodeFromFirstHalf();
+      Node<ElementType, T> second_half_node = curr_node.NodeFromSecondHalf();
       // Prepare links
       link_before_inserted = curr_file_pos;
       link_after_inserted = _file_manager.NewNode();
@@ -154,11 +156,11 @@ void BTreeList<ElementType, T>::Insert(unsigned index, const ElementType &e) {
       _file_manager.SetNode(link_before_inserted, first_half_node);
       _file_manager.SetNode(link_after_inserted, second_half_node);
       if (file_pos_path.empty()) { // Separated root
-        _Node<ElementType, T> new_root(
+        Node<ElementType, T> new_root(
             std::vector<ElementType>{element_to_insert},
             std::vector<file_pos_t>{link_before_inserted, link_after_inserted},
             std::vector<size_t>{cc_before_inserted, cc_after_inserted},
-            _Node<ElementType, T>::_Flags::ROOT
+            Node<ElementType, T>::_Flags::ROOT
         );
         _data_info_ptr->_root_pos = _file_manager.NewNode(new_root);
       }
@@ -175,7 +177,7 @@ void BTreeList<ElementType, T>::Set(unsigned index, const ElementType& e) {
   file_pos = _data_info_ptr->_root_pos;
   unsigned in_node_index;
 
-  _Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
+  Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
   node.Element(in_node_index) = e;
   _file_manager.SetNode(file_pos, node);
 }
@@ -185,7 +187,7 @@ ElementType BTreeList<ElementType, T>::Get(unsigned index) {
   file_pos_t file_pos = _data_info_ptr->_root_pos;
   unsigned in_node_index;
 
-  _Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
+  Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
   return node._elements[in_node_index];
 }
 
@@ -196,14 +198,14 @@ ElementType BTreeList<ElementType, T>::Extract(unsigned index) {
   std::vector<unsigned> indexes_path;
 
   _FindPathByIndex(index, file_pos_path, indexes_path);
-  _Node<ElementType, T> node_to_extract =
+  Node<ElementType, T> node_to_extract =
       _file_manager.GetNode(file_pos_path.back());
 
   ElementType element_to_extract;
   if (node_to_extract.GetIsLeaf()) {
     element_to_extract = _ExtractFromLeaf(file_pos_path, indexes_path);
   } else {
-    _Node<ElementType, T> node_with_element =
+    Node<ElementType, T> node_with_element =
         _file_manager.GetNode(file_pos_path.back());
     element_to_extract = node_with_element.Element(indexes_path.back());
     _FindAppropriateInLeafElement(file_pos_path, indexes_path);
@@ -225,7 +227,7 @@ size_t BTreeList<ElementType, T>::Size() const {
 
 template <typename ElementType, size_t T>
 unsigned  BTreeList<ElementType, T>::_FindInNodeIndex(
-    const _Node<ElementType, T> &node,
+    const Node<ElementType, T> &node,
     int64_t &elements_to_skip
 ) {
   unsigned in_node_index = 0;
@@ -241,14 +243,14 @@ unsigned  BTreeList<ElementType, T>::_FindInNodeIndex(
 }
 
 template <typename ElementType, size_t T>
-_Node<ElementType, T> BTreeList<ElementType, T>::_FindElement(
+Node<ElementType, T> BTreeList<ElementType, T>::_FindElement(
     unsigned index,
     file_pos_t &file_pos,
     unsigned &index_to_operate
 ) {
   bool found = false;
   auto elements_to_skip = static_cast<int64_t>(index);
-  _Node<ElementType, T> curr_node;
+  Node<ElementType, T> curr_node;
   do {
     curr_node = _file_manager.GetNode(file_pos);
     unsigned in_node_index = _FindInNodeIndex(curr_node, elements_to_skip);
@@ -289,7 +291,7 @@ void BTreeList<ElementType, T>::_FindPathToLeafByIndex(
   bool found = false;
   auto elements_to_skip = static_cast<int64_t>(index);
   do {
-    _Node<ElementType, T> curr_node = _file_manager.GetNode(curr_file_pos);
+    Node<ElementType, T> curr_node = _file_manager.GetNode(curr_file_pos);
     unsigned in_node_index = _FindInNodeIndex(curr_node, elements_to_skip);
     indexes_path.push_back(in_node_index);
     if (!curr_node.GetIsLeaf()) {
@@ -307,7 +309,7 @@ void BTreeList<ElementType, T>::_FindPathToLeafByIndex(
  */
 
 template <typename ElementType, size_t T>
-_Node<ElementType, T> BTreeList<ElementType, T>::_FindPathByIndex(
+Node<ElementType, T> BTreeList<ElementType, T>::_FindPathByIndex(
     unsigned index,
     std::vector<file_pos_t> &file_pos_path,
     std::vector<unsigned> &indexes_path
@@ -316,7 +318,7 @@ _Node<ElementType, T> BTreeList<ElementType, T>::_FindPathByIndex(
   file_pos_path.push_back(curr_file_pos);
   bool found = false;
   auto elements_to_skip = static_cast<int64_t>(index);
-  _Node<ElementType, T> curr_node;
+  Node<ElementType, T> curr_node;
   do {
     curr_node = _file_manager.GetNode(curr_file_pos);
     unsigned in_node_index = _FindInNodeIndex(curr_node, elements_to_skip);
@@ -343,7 +345,7 @@ void BTreeList<ElementType, T>::_FindAppropriateInLeafElement(
     std::vector<file_pos_t> &file_pos_path,
     std::vector<unsigned> &indexes_path
 ) {
-  _Node<ElementType, T> curr_node = _file_manager.GetNode(file_pos_path.back());
+  Node<ElementType, T> curr_node = _file_manager.GetNode(file_pos_path.back());
   file_pos_path.push_back(curr_node.LinkAfter(indexes_path.back()));
   curr_node = _file_manager.GetNode(file_pos_path.back());
   indexes_path.push_back(0);
@@ -364,12 +366,14 @@ ElementType BTreeList<ElementType, T>::_ExtractFromLeaf(
   file_pos_path.pop_back();
   indexes_path.pop_back();
 
-  _Node<ElementType, T> curr_node = _file_manager.GetNode(curr_file_pos);
+  Node<ElementType, T> curr_node = _file_manager.GetNode(curr_file_pos);
 
   ElementType element_to_return = curr_node.Extract(in_node_index);
   curr_node.ExtractLinkBefore(in_node_index);
   curr_node.ExtractChildrenCntBefore(in_node_index);
   _file_manager.SetNode(curr_file_pos, curr_node);
+
+  Node<ElementType, T> parent_node;
 
   bool finished = false;
   while (!file_pos_path.empty() && !finished) {
@@ -377,11 +381,15 @@ ElementType BTreeList<ElementType, T>::_ExtractFromLeaf(
     unsigned in_parent_index = indexes_path.back();
     file_pos_path.pop_back();
     indexes_path.pop_back();
-    finished = _CorrectNodeOnExtract(curr_file_pos, parent_file_pos, in_parent_index);
+    parent_node = _file_manager.GetNode(parent_file_pos);
+    finished = _CorrectNodeOnExtract(curr_node, parent_node,
+                                     curr_file_pos, parent_file_pos,
+                                     in_parent_index);
     curr_file_pos = parent_file_pos;
+    curr_node = parent_node;
   }
   _CorrectChildrenCnts(file_pos_path, indexes_path, -1);
-  _Node<ElementType, T> root = _file_manager.GetNode(_data_info_ptr->_root_pos);
+  Node<ElementType, T> root = _file_manager.GetNode(_data_info_ptr->_root_pos);
   if (root.Size() == 0) {
     _file_manager.DeleteNode(_data_info_ptr->_root_pos);
     _data_info_ptr->_root_pos = root.LinkBefore(0);
@@ -396,18 +404,21 @@ ElementType BTreeList<ElementType, T>::_ExtractFromLeaf(
  * Corrects node after extracting element from it by exchanging elements and
  * links with neighbour and parent.
  * Requires root node not to be empty.
+ * Nodes are expected to be opened.
  */
 
 template <typename ElementType, size_t T>
 bool BTreeList<ElementType, T>::_CorrectNodeOnExtract(
+    Node<ElementType, T> &node,
+    Node<ElementType, T> &parent_node,
     file_pos_t file_pos,
     file_pos_t parent_file_pos,
     unsigned in_parent_index
 ) {
   bool finished = false;
 
-  _Node<ElementType, T> node = _file_manager.GetNode(file_pos);
-  _Node<ElementType, T> parent_node = _file_manager.GetNode(parent_file_pos);
+  //Node<ElementType, T> node = _file_manager.GetNode(file_pos);
+  parent_node = _file_manager.GetNode(parent_file_pos);
 
   file_pos_t neighbour_node_file_pos;
   bool with_left = true;
@@ -425,11 +436,11 @@ bool BTreeList<ElementType, T>::_CorrectNodeOnExtract(
     --in_parent_index;
     neighbour_node_file_pos = parent_node.LinkBefore(in_parent_index);
   }
-  _Node<ElementType, T> neighbour_node =
+  Node<ElementType, T> neighbour_node =
       _file_manager.GetNode(neighbour_node_file_pos);
 
   if (neighbour_node.Size() == T - 1) {  // connect
-    _Node<ElementType, T> connected_node;
+    Node<ElementType, T> connected_node;
     if (with_left) {
       connected_node =
           Connect(neighbour_node, node, parent_node.Extract(in_parent_index));
@@ -444,9 +455,9 @@ bool BTreeList<ElementType, T>::_CorrectNodeOnExtract(
     parent_node.ChildrenCntBefore(in_parent_index) =
         connected_node.GetAllChildrenCnt();
     _file_manager.DeleteNode(neighbour_node_file_pos);
-    _file_manager.SetNode(parent_file_pos, parent_node);
     _file_manager.SetNode(file_pos, connected_node);
     if (parent_node.Size() >= T - 1 || parent_node.GetIsRoot()) {
+      _file_manager.SetNode(parent_file_pos, parent_node);
       finished = true;
     }
   } else {  // move element
@@ -465,9 +476,9 @@ bool BTreeList<ElementType, T>::_CorrectNodeOnExtract(
 
 template <typename ElementType, size_t T>
 void BTreeList<ElementType, T>::_MoveElementFromLeftNeighbour(
-    _Node<ElementType, T> &node,
-    _Node<ElementType, T> &neighbour_node,
-    _Node<ElementType, T> &parent_node,
+    Node<ElementType, T> &node,
+    Node<ElementType, T> &neighbour_node,
+    Node<ElementType, T> &parent_node,
     unsigned &in_parent_index
 ) {
   ElementType element_from_neighbour = neighbour_node.ExtractBack();
@@ -489,9 +500,9 @@ void BTreeList<ElementType, T>::_MoveElementFromLeftNeighbour(
 
 template <typename ElementType, size_t T>
 void BTreeList<ElementType, T>::_MoveElementFromRightNeighbour(
-    _Node<ElementType, T> &node,
-    _Node<ElementType, T> &neighbour_node,
-    _Node<ElementType, T> &parent_node,
+    Node<ElementType, T> &node,
+    Node<ElementType, T> &neighbour_node,
+    Node<ElementType, T> &parent_node,
     unsigned &in_parent_index
 ) {
   ElementType element_from_neighbour = neighbour_node.Extract(0);
@@ -515,7 +526,7 @@ void BTreeList<ElementType, T>::_CorrectChildrenCnts(
     int to_change
 ) {
   while (!file_pos_path.empty()) {
-    _Node<ElementType, T> node_to_correct =
+    Node<ElementType, T> node_to_correct =
         _file_manager.GetNode(file_pos_path.back());
     node_to_correct.ChildrenCntBefore(in_node_indexes_path.back()) +=
         to_change;
@@ -528,21 +539,21 @@ void BTreeList<ElementType, T>::_CorrectChildrenCnts(
 template <typename ElementType, size_t T>
 void BTreeList<ElementType, T>::_Rebuild() {
   std::string restored_name = _file_manager._file_params_ptr->path;
-  std::shared_ptr<_DataInfo> new_data_info_ptr(std::make_shared<_DataInfo>());
+  std::shared_ptr<DataInfo> new_data_info_ptr(std::make_shared<DataInfo>());
   new_data_info_ptr->_root_pos = 0;
   new_data_info_ptr->_size = _data_info_ptr->_size;
   new_data_info_ptr->_stack_head_pos = -1;
   new_data_info_ptr->_free_tail_start = _data_info_ptr->_size;
   new_data_info_ptr->_in_memory_node_pos = _data_info_ptr->_size - 1;
-  _FileSavingManager<ElementType, T> new_file_manager("data_tmp", new_data_info_ptr);
+  FileSavingManager<ElementType, T> new_file_manager("data_tmp", new_data_info_ptr);
   file_pos_t last_added_node_pos = 1;
   file_pos_t curr_pos = 0;
   new_file_manager.NewNode(_file_manager.GetNode(_data_info_ptr->_root_pos));
   do {
-    _Node<ElementType, T> curr_node = new_file_manager.GetNode(curr_pos);
+    Node<ElementType, T> curr_node = new_file_manager.GetNode(curr_pos);
     if (!curr_node.GetIsLeaf()) {
       for (unsigned i = 0; i < curr_node.Size() + 1; ++i) {
-        _Node<ElementType, T> node_to_copy =
+        Node<ElementType, T> node_to_copy =
             _file_manager.GetNode(curr_node.LinkBefore(i));
         file_pos_t pos_to_set_node = new_file_manager.NewNode(node_to_copy);
         ++last_added_node_pos;
@@ -552,7 +563,7 @@ void BTreeList<ElementType, T>::_Rebuild() {
     }
     ++curr_pos;
   } while (curr_pos < last_added_node_pos);
-  _file_manager.~_FileSavingManager();
+  _file_manager.~FileSavingManager();
   _file_manager = new_file_manager;
   boost::filesystem::remove(restored_name);
   _file_manager.RenameMappedFile(restored_name);
