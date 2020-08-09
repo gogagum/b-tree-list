@@ -21,14 +21,14 @@ class BlockRW {
 
   BlockRW(
       const std::shared_ptr<boost::iostreams::mapped_file> &mapped_file_ptr,
-      size_t file_info_size,
+      size_t first_node_offset,
       size_t block_size);
 
   template<typename TypeToRead>
   TypeToRead* GetBlockPtr(file_pos_t pos) const;
 
   template <typename ElementType, size_t T>
-  struct Node<ElementType, T>::_NodeInfo* GetInfoPtr(file_pos_t pos) const;
+  struct Node<ElementType, T>::_NodeInfo* GetNodeInfoPtr(file_pos_t pos) const;
 
   template<typename ElementType, size_t T>
   ElementType* GetNodeElementPtr(file_pos_t pos, unsigned index) const;
@@ -49,7 +49,7 @@ class BlockRW {
   std::shared_ptr<boost::iostreams::mapped_file> _mapped_file_ptr;
   size_t _block_size;  // The same as in allocator which uses this class.
 
-  size_t _file_info_size;
+  size_t _first_node_offset;
 
   //////////////////////////////////////////////////////////////////////////////
   // Friend classes                                                           //
@@ -66,20 +66,20 @@ BlockRW::BlockRW() {};
 
 BlockRW::BlockRW(
     const std::shared_ptr<boost::iostreams::mapped_file> &mapped_file_ptr,
-    size_t file_info_size,
+    size_t first_node_offset,
     size_t block_size)
   : _mapped_file_ptr(mapped_file_ptr),
-    _file_info_size(file_info_size),
+    _first_node_offset(first_node_offset),
     _block_size(block_size) {}
 
 template<typename TypeToRead>
 TypeToRead* BlockRW::GetBlockPtr(file_pos_t pos) const {
   return reinterpret_cast<TypeToRead*>(_mapped_file_ptr->data() +
-      _file_info_size + pos * _block_size);
+      _first_node_offset + pos * _block_size);
 }
 
 template<typename ElementType, size_t T>
-struct Node<ElementType, T>::_NodeInfo* BlockRW::GetInfoPtr(
+struct Node<ElementType, T>::_NodeInfo* BlockRW::GetNodeInfoPtr(
     file_pos_t pos
 ) const {
   return reinterpret_cast<struct Node<ElementType, T>::_NodeInfo*>(
@@ -113,7 +113,7 @@ size_t* BlockRW::GetNodeCCPtr(file_pos_t pos, unsigned index) const {
 
 template<typename TypeToWrite>
 void BlockRW::WriteBlock(file_pos_t pos, const TypeToWrite &element) {
-  *(_mapped_file_ptr->data() + _file_info_size + pos * _block_size) =
+  *(_mapped_file_ptr->data() + _first_node_offset + pos * _block_size) =
       element;
 }
 

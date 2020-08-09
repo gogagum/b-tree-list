@@ -13,6 +13,10 @@
 typedef uint64_t file_pos_t;
 typedef int64_t signed_file_pos_t;
 
+inline int ceil_div(int a, int b) {
+  return (a - 1) / b + 1;
+}
+
 template <typename ElementType>
 class Allocator{
  private:
@@ -84,7 +88,9 @@ Allocator<ElementType>::Allocator(
 ) : _mapped_file_ptr(mapped_file_ptr),
     _file_params_ptr(file_params_ptr),
     _block_size(block_size),
-    _block_rw(mapped_file_ptr, sizeof(DataInfo), block_size),
+    _block_rw(mapped_file_ptr,
+              ceil_div(sizeof(DataInfo), block_size),
+              block_size),
     _data_info_ptr(data_info_ptr)
 {
   if (!new_file_flag) {
