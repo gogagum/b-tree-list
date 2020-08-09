@@ -79,6 +79,16 @@ TEST(simple_tests, simple_extract) {
   EXPECT_EQ(boost::filesystem::remove("simple_extract_data"), true);
 }
 
+TEST(simple_tests, square_brackets) {
+  auto* test_list = new BTreeList<int>("square_brackets_test_data");
+  test_list->Insert(0, 21);
+  EXPECT_EQ((*test_list)[0], 21);
+  (*test_list)[0] = 12;
+  EXPECT_EQ((*test_list)[0], 12);
+
+  EXPECT_EQ(boost::filesystem::remove("square_brackets_test_data"), true);
+}
+
 TEST(not_simple_tests, inserts) {
   auto* test_list = new BTreeList<int, 2>("inserts_test_data", 0);
   for (int i = 0; i < 16; ++i) {

@@ -8,6 +8,7 @@
 #include "node.hpp"
 #include "file_saving_manager.hpp"
 #include "data_info.hpp"
+#include "block_rw.hpp"
 
 #ifndef B_TREE_LIST_LIBRARY_H
 #define B_TREE_LIST_LIBRARY_H
@@ -29,6 +30,10 @@ class BTreeList{
   void Set(unsigned index, const ElementType& e);
 
   ElementType Get(unsigned index);
+
+  ElementType& operator[](unsigned index);
+
+  ElementType operator[](unsigned index) const;
 
   [[nodiscard]] size_t Size() const;
 
@@ -173,14 +178,37 @@ void BTreeList<ElementType, T>::Insert(unsigned index, const ElementType &e) {
 
 template <typename ElementType, size_t T>
 void BTreeList<ElementType, T>::Set(unsigned index, const ElementType& e) {
-  file_pos_t file_pos;
-  file_pos = _data_info_ptr->_root_pos;
+  file_pos_t file_pos = _data_info_ptr->_root_pos;
   unsigned in_node_index;
 
   Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
   node.Element(in_node_index) = e;
   _file_manager.SetNode(file_pos, node);
 }
+
+template <typename ElementType, size_t T>
+ElementType& BTreeList<ElementType, T>::operator[](unsigned index) {
+  file_pos_t file_pos = _data_info_ptr->_root_pos;
+  unsigned in_node_index;
+
+  _FindElement(index, file_pos, in_node_index);
+  return *_file_manager._block_rw.template GetNodeElementPtr<ElementType, T>(
+      file_pos,
+      in_node_index
+  );
+};
+
+template <typename ElementType, size_t T>
+ElementType BTreeList<ElementType, T>::operator[](unsigned index) const {
+  file_pos_t file_pos = _data_info_ptr->_root_pos;
+  unsigned in_node_index;
+
+  _FindElement(index, file_pos, in_node_index);
+  return *_file_manager._block_rw.template GetNodeElementPtr<ElementType,T>(
+      file_pos,
+      in_node_index
+  );
+};
 
 template <typename ElementType, size_t T>
 ElementType BTreeList<ElementType, T>::Get(unsigned index) {

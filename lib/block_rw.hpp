@@ -31,6 +31,15 @@ class BlockRW {
   struct Node<ElementType, T>::_NodeInfo* GetNodeInfoPtr(file_pos_t pos) const;
 
   template<typename ElementType, size_t T>
+  ElementType* GetNodeElementPtr(file_pos_t pos, unsigned index);
+
+  template<typename ElementType, size_t T>
+  file_pos_t* GetNodeLinkPtr(file_pos_t pos, unsigned index);
+
+  template<typename ElementType, size_t T>
+  size_t* GetNodeCCPtr(file_pos_t pos, unsigned index);
+
+  template<typename ElementType, size_t T>
   ElementType* GetNodeElementPtr(file_pos_t pos, unsigned index) const;
 
   template<typename ElementType, size_t T>
@@ -60,6 +69,9 @@ class BlockRW {
 
   template <typename ElementType, size_t T>
   friend class FileSavingManager;
+
+  template <typename ElementType, size_t T>
+  friend class BTreeList;
 };
 
 BlockRW::BlockRW() {};
@@ -88,7 +100,7 @@ struct Node<ElementType, T>::_NodeInfo* BlockRW::GetNodeInfoPtr(
 };
 
 template<typename ElementType, size_t T>
-ElementType* BlockRW::GetNodeElementPtr(file_pos_t pos, unsigned index) const {
+ElementType* BlockRW::GetNodeElementPtr(file_pos_t pos, unsigned index) {
   return reinterpret_cast<ElementType*>(
       GetBlockPtr<char>(pos) + Node<ElementType, T>::elements_offset +
       sizeof(ElementType) * index
@@ -96,7 +108,7 @@ ElementType* BlockRW::GetNodeElementPtr(file_pos_t pos, unsigned index) const {
 }
 
 template<typename ElementType, size_t T>
-file_pos_t* BlockRW::GetNodeLinkPtr(file_pos_t pos, unsigned index) const {
+file_pos_t* BlockRW::GetNodeLinkPtr(file_pos_t pos, unsigned index) {
   return reinterpret_cast<file_pos_t*>(
       GetBlockPtr<char>(pos) + Node<ElementType, T>::links_offset +
       sizeof(file_pos_t) * index
@@ -104,10 +116,34 @@ file_pos_t* BlockRW::GetNodeLinkPtr(file_pos_t pos, unsigned index) const {
 }
 
 template<typename ElementType, size_t T>
-size_t* BlockRW::GetNodeCCPtr(file_pos_t pos, unsigned index) const {
+size_t* BlockRW::GetNodeCCPtr(file_pos_t pos, unsigned index) {
   return reinterpret_cast<size_t*>(
       GetBlockPtr<char>(pos) + Node<ElementType, T>::cc_offset +
       sizeof(size_t) * index
+  );
+}
+
+template<typename ElementType, size_t T>
+ElementType* BlockRW::GetNodeElementPtr(file_pos_t pos, unsigned index) const {
+  return reinterpret_cast<ElementType*>(
+      GetBlockPtr<char>(pos) + Node<ElementType, T>::elements_offset +
+          sizeof(ElementType) * index
+  );
+}
+
+template<typename ElementType, size_t T>
+file_pos_t* BlockRW::GetNodeLinkPtr(file_pos_t pos, unsigned index) const {
+  return reinterpret_cast<file_pos_t*>(
+      GetBlockPtr<char>(pos) + Node<ElementType, T>::links_offset +
+          sizeof(file_pos_t) * index
+  );
+}
+
+template<typename ElementType, size_t T>
+size_t* BlockRW::GetNodeCCPtr(file_pos_t pos, unsigned index) const {
+  return reinterpret_cast<size_t*>(
+      GetBlockPtr<char>(pos) + Node<ElementType, T>::cc_offset +
+          sizeof(size_t) * index
   );
 }
 
