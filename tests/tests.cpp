@@ -116,6 +116,19 @@ TEST(simple_tests, restore_from_file) {
   EXPECT_EQ(boost::filesystem::remove("restore_from_file"), true);
 }
 
+TEST(simple_tests, insert_from_iterators) {
+  std::string file_name = "insert_from_iterators_data";
+  auto *test_list = new BTreeList<int, 200>(file_name);
+  std::vector<int> vector_to_insert = {1, 2, 3, 4, 5};
+  test_list->Insert(0, vector_to_insert.begin(), vector_to_insert.end());
+  EXPECT_EQ(test_list->Size(), 5);
+  EXPECT_EQ(test_list->Get(2), 3);
+
+  delete test_list;
+
+  EXPECT_EQ(boost::filesystem::remove(file_name), true);
+}
+
 TEST(not_simple_tests, many_elements) {
   std::vector<int> elements = {2, 35, 567, 2, 3, 2, 5, 7, 2, 3, 56, 8, 8, 5, 3, 2, 2, 4, 6, 89, 0, 4, 3, 2, 2, 356, 678, 0, 0, 54};
   auto* test_list = new BTreeList<int, 10>("many_elements_test_data");
@@ -150,4 +163,15 @@ TEST(not_simple_tests, many_extracts) {
 
   delete test_list;
   EXPECT_EQ(boost::filesystem::remove("many_extracts_test_data"), true);
+}
+
+TEST(not_simple_tests, inserts_from_long_vector) {
+  std::vector<int> v(10000000, 42);
+  std::string filename = "inserts_from_long_vector_data";
+  auto* test_list = new BTreeList<int, 200>(filename);
+  test_list->Insert(0, v.begin(), v.end());
+  EXPECT_EQ(test_list->Size(), 10000000);
+
+  delete test_list;
+  EXPECT_EQ(boost::filesystem::remove(filename), true);
 }

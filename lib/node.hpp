@@ -76,6 +76,9 @@ class Node{
 
   void Insert(unsigned i, const ElementType &e);
 
+  template <typename IteratorType>
+  void Insert(unsigned i, const IteratorType &begin, const IteratorType &end);
+
   //////////////////////////////////////////////////////////////////////////////
 
   ElementType Extract(unsigned i);
@@ -343,6 +346,24 @@ void Node<_ElementType, T>::Insert(unsigned i, const _ElementType &e) {
   _children_cnts.insert(_children_cnts.begin() + i + 1, 0);
 }
 
+template<typename ElementType, size_t T>
+template<typename IteratorType>
+void Node<ElementType, T>::Insert(unsigned int i,
+                                  const IteratorType &begin,
+                                  const IteratorType &end) {
+  // TODO: Find out how to check if iterator is random access
+  int cnt = end - begin;
+  _elements.insert(_elements.begin() + i, begin, end);
+  std::vector<file_pos_t> links_to_insert(cnt, 0);
+  _links.insert(_links.begin() + i + 1,
+                links_to_insert.begin(),
+                links_to_insert.end());
+  std::vector<size_t> cnts_to_insert(cnt, 0);
+  _children_cnts.insert(_children_cnts.begin(),
+                        cnts_to_insert.begin(),
+                        cnts_to_insert.end());
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Extracts                                                                   //
 ////////////////////////////////////////////////////////////////////////////////
@@ -529,6 +550,7 @@ Node<ElementType, T> Connect(const Node<ElementType, T> &left_node,
   Node<ElementType, T> node_to_return = left_node;
   node_to_return.ConnectWith(e, right_node);
   return node_to_return;
-};
+}
+
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_
