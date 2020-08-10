@@ -164,14 +164,3 @@ TEST(not_simple_tests, many_extracts) {
   delete test_list;
   EXPECT_EQ(boost::filesystem::remove("many_extracts_test_data"), true);
 }
-
-TEST(not_simple_tests, inserts_from_long_vector) {
-  std::vector<int> v(10000000, 42);
-  std::string filename = "inserts_from_long_vector_data";
-  auto* test_list = new BTreeList<int, 200>(filename);
-  test_list->Insert(0, v.begin(), v.end());
-  EXPECT_EQ(test_list->Size(), 10000000);
-
-  delete test_list;
-  EXPECT_EQ(boost::filesystem::remove(filename), true);
-}

@@ -23,10 +23,13 @@ class BTreeList{
 
   explicit BTreeList(const std::string &filename, size_t size = 0);
 
+  template <typename IteratorType>
+  BTreeList(const std::string &filename, IteratorType begin, IteratorType end);
+
   void Insert(unsigned index, const ElementType& e);
 
   template <typename IteratorType>
-  void Insert(unsigned index, IteratorType start, IteratorType end);
+  void Insert(unsigned index, IteratorType begin, IteratorType end);
 
   ElementType Extract(unsigned index);
 
@@ -117,12 +120,22 @@ class BTreeList{
 
 template <typename ElementType, size_t T>
 BTreeList<ElementType, T>::BTreeList(const std::string &filename, size_t size)
- : _in_memory_node(),
-   _data_info_ptr(std::make_shared<DataInfo>()),
-   _file_manager(filename, _in_memory_node, _data_info_ptr) {
-  for (unsigned i = 0; i < size; ++i) {
-    Insert(0, 0);
-  }
+  : _in_memory_node(),
+    _data_info_ptr(std::make_shared<DataInfo>()),
+    _file_manager(filename, _in_memory_node, _data_info_ptr) {
+  std::vector<ElementType> filler_vector(size);
+  Insert(0, filler_vector.begin(), filler_vector.end());
+}
+
+template <typename ElementType, size_t T>
+template <typename IteratorType>
+BTreeList<ElementType, T>::BTreeList(const std::string &filename,
+                                     IteratorType begin,
+                                     IteratorType end)
+  : _in_memory_node(),
+    _data_info_ptr(std::make_shared<DataInfo>()),
+    _file_manager(filename, _in_memory_node, _data_info_ptr) {
+  Insert(0, begin, end);
 }
 
 template <typename ElementType, size_t T>
