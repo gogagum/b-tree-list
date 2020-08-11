@@ -21,10 +21,14 @@ template <typename ElementType, size_t T = 200>
 class BTreeList{
  public:
 
-  explicit BTreeList(const std::string &filename, size_t size = 0);
+  explicit BTreeList(const std::string &filename,
+                     size_t size = 0,
+                     bool rebuild_flag = false);
 
   template <typename IteratorType>
-  BTreeList(const std::string &filename, IteratorType begin, IteratorType end);
+  BTreeList(const std::string &filename,
+            IteratorType begin, IteratorType end,
+            bool rebuild_flag = false);
 
   void Insert(unsigned index, const ElementType& e);
 
@@ -54,6 +58,8 @@ class BTreeList{
 
   Node<ElementType, T> _in_memory_node;
   FileSavingManager<ElementType, T> _file_manager;
+
+  bool _rebuild_flag;
 
   //////////////////////////////////////////////////////////////////////////////
   // Private methods                                                          //
@@ -119,10 +125,11 @@ class BTreeList{
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename ElementType, size_t T>
-BTreeList<ElementType, T>::BTreeList(const std::string &filename, size_t size)
+BTreeList<ElementType, T>::BTreeList(const std::string &filename, size_t size, bool rebuild_flag)
   : _in_memory_node(),
     _data_info_ptr(std::make_shared<DataInfo>()),
-    _file_manager(filename, _in_memory_node, _data_info_ptr) {
+    _file_manager(filename, _in_memory_node, _data_info_ptr),
+    _rebuild_flag(rebuild_flag) {
   std::vector<ElementType> filler_vector(size);
   Insert(0, filler_vector.begin(), filler_vector.end());
 }
@@ -131,10 +138,12 @@ template <typename ElementType, size_t T>
 template <typename IteratorType>
 BTreeList<ElementType, T>::BTreeList(const std::string &filename,
                                      IteratorType begin,
-                                     IteratorType end)
+                                     IteratorType end,
+                                     bool rebuild_flag)
   : _in_memory_node(),
     _data_info_ptr(std::make_shared<DataInfo>()),
-    _file_manager(filename, _in_memory_node, _data_info_ptr) {
+    _file_manager(filename, _in_memory_node, _data_info_ptr),
+    _rebuild_flag(rebuild_flag) {
   Insert(0, begin, end);
 }
 
@@ -666,7 +675,9 @@ void BTreeList<ElementType, T>::_Rebuild() {
 
 template <typename ElementType, size_t T>
 BTreeList<ElementType, T>::~BTreeList<ElementType, T>() {
-  _Rebuild();
+  if (_rebuild_flag) {
+    _Rebuild();
+  }
 }
 
 
