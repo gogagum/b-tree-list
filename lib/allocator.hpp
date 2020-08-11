@@ -2,6 +2,7 @@
 // Created by gogagum on 16.07.2020.
 //
 
+#include <boost/iostreams/device/mapped_file.hpp>
 #include "data_info.hpp"
 #include "block_rw.hpp"
 
