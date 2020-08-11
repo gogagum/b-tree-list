@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-// #include <gmock/gmock.h>
+#include <gmock/gmock.h>
 #include "../lib/b_tree_list.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
