@@ -20,5 +20,5 @@ project(b_tree_list_stress_test)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(b_tree_list_stress_test stress_tests/main.cpp)
+add_executable(b_tree_list_stress_test stress_tests/main.cpp lib/b_tree_list.hpp lib/node.hpp lib/file_saving_manager.hpp lib/allocator.hpp lib/block_rw.hpp lib/data_info.hpp)
 target_link_libraries(b_tree_list_stress_test ${Boost_LIBRARIES})

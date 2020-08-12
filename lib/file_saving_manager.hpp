@@ -108,7 +108,7 @@ FileSavingManager<ElementType, T>::FileSavingManager(
   _mapped_file_ptr =
       std::make_shared<boost::iostreams::mapped_file>(*_file_params_ptr);
   _block_rw = BlockRW(_mapped_file_ptr,
-                      Allocator<ElementType>::data_info_size,
+                      ceil_div(sizeof(DataInfo), _page_size),
                       _page_size * _node_params._pages_cnt);
   _allocator = Allocator<ElementType>(_mapped_file_ptr,
                                       _file_params_ptr,

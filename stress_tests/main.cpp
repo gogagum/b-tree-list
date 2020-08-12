@@ -8,8 +8,8 @@
 
 void RunAllTests() {
   RunInsertsTestPack();
-  RunExtractsTestPack();
-  RunSetsTestPack();
+  //RunExtractsTestPack();
+  //RunSetsTestPack();
 }
 
 int main() {
