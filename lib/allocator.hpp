@@ -90,7 +90,7 @@ Allocator<ElementType>::Allocator(
     _file_params_ptr(file_params_ptr),
     _block_size(block_size),
     _block_rw(mapped_file_ptr,
-              ceil_div(sizeof(DataInfo), block_size),
+              ceil_div(sizeof(DataInfo), boost::interprocess::mapped_region::get_page_size()),
               block_size),
     _data_info_ptr(data_info_ptr)
 {
@@ -111,9 +111,9 @@ template <typename ElementType>
 file_pos_t Allocator<ElementType>::NewNode() {
   file_pos_t index_to_return;
   if (_data_info_ptr->_stack_head_pos != -1) {
-    index_to_return = _data_info_ptr->_stack_head_pos;
+    index_to_return = static_cast<file_pos_t>(_data_info_ptr->_stack_head_pos);
     _data_info_ptr->_stack_head_pos =
-        *(_block_rw.GetBlockPtr<unsigned>(_data_info_ptr->_stack_head_pos));
+        *(_block_rw.GetBlockPtr<signed_file_pos_t>(_data_info_ptr->_stack_head_pos));
   } else {
     index_to_return = _data_info_ptr->_free_tail_start;
     ++_data_info_ptr->_free_tail_start;

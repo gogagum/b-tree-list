@@ -135,7 +135,7 @@ class Node{
 
   _NodeInfo GetNodeInfo() const;
 
-  ~Node();
+  //~Node();
 
   //////////////////////////////////////////////////////////////////////////////
   // Parameters structs and enums declaration                                 //
@@ -198,9 +198,9 @@ class Node{
 
 template <typename _ElementType, size_t T>
 Node<_ElementType, T>::Node()
-  : _elements(std::vector<_ElementType>(0)),
-    _links(std::vector<file_pos_t>(1, 0)),
-    _children_cnts(std::vector<size_t>(1, 0)),
+  : _elements(0),
+    _links(1, static_cast<file_pos_t>(0)),
+    _children_cnts(1, static_cast<size_t>(0)),
     _flags(_Flags::ROOT | _Flags::LEAF) {}
 
 template <typename _ElementType, size_t T>
@@ -359,7 +359,7 @@ void Node<ElementType, T>::Insert(unsigned int i,
                 links_to_insert.begin(),
                 links_to_insert.end());
   std::vector<size_t> cnts_to_insert(cnt, 0);
-  _children_cnts.insert(_children_cnts.begin(),
+  _children_cnts.insert(_children_cnts.begin() + i + 1,
                         cnts_to_insert.begin(),
                         cnts_to_insert.end());
 }
@@ -524,8 +524,8 @@ size_t Node<ElementType, T>::Size() const {
 template <typename ElementType, size_t T>
 void Node<ElementType, T>::Resize(size_t new_size) {
   _elements.resize(new_size);
-  _links.resize(new_size + 1);
-  _children_cnts.resize(new_size + 1);
+  _links.resize(new_size + 1, static_cast<file_pos_t >(0));
+  _children_cnts.resize(new_size + 1, static_cast<size_t >(0));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -536,8 +536,8 @@ Node<ElementType, T>::GetNodeInfo() const {
   return Node<ElementType, T>::_NodeInfo{_elements.size(), _flags};
 }
 
-template <typename ElementType, size_t T>
-Node<ElementType, T>::~Node() = default;
+//template <typename ElementType, size_t T>
+//Node<ElementType, T>::~Node() = default;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Friend functions                                                           //
