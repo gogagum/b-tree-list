@@ -1,3 +1,5 @@
 .idea
 cmake-build-debug/
 lib/googletest/
+*test_data
+stress_tests/try3/.ipynb_checkpoints/

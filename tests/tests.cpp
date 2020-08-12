@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-// #include <gmock/gmock.h>
+#include <gmock/gmock.h>
 #include "../lib/b_tree_list.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +79,16 @@ TEST(simple_tests, simple_extract) {
   EXPECT_EQ(boost::filesystem::remove("simple_extract_data"), true);
 }
 
+TEST(simple_tests, square_brackets) {
+  auto* test_list = new BTreeList<int>("square_brackets_test_data");
+  test_list->Insert(0, 21);
+  EXPECT_EQ((*test_list)[0], 21);
+  (*test_list)[0] = 12;
+  EXPECT_EQ((*test_list)[0], 12);
+
+  EXPECT_EQ(boost::filesystem::remove("square_brackets_test_data"), true);
+}
+
 TEST(not_simple_tests, inserts) {
   auto* test_list = new BTreeList<int, 2>("inserts_test_data", 0);
   for (int i = 0; i < 16; ++i) {
@@ -104,6 +114,19 @@ TEST(simple_tests, restore_from_file) {
   delete test_list;
 
   EXPECT_EQ(boost::filesystem::remove("restore_from_file"), true);
+}
+
+TEST(simple_tests, insert_from_iterators) {
+  std::string file_name = "insert_from_iterators_data";
+  auto *test_list = new BTreeList<int, 200>(file_name);
+  std::vector<int> vector_to_insert = {1, 2, 3, 4, 5};
+  test_list->Insert(0, vector_to_insert.begin(), vector_to_insert.end());
+  EXPECT_EQ(test_list->Size(), 5);
+  EXPECT_EQ(test_list->Get(2), 3);
+
+  delete test_list;
+
+  EXPECT_EQ(boost::filesystem::remove(file_name), true);
 }
 
 TEST(not_simple_tests, many_elements) {
@@ -140,4 +163,35 @@ TEST(not_simple_tests, many_extracts) {
 
   delete test_list;
   EXPECT_EQ(boost::filesystem::remove("many_extracts_test_data"), true);
+}
+
+TEST(not_simple_extracts, random_extracts) {
+  std::vector<int> elements = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+  std::string filename = "random_extracts_test_data";
+  auto* test_list = new BTreeList<int, 3>(filename);
+  test_list->Insert(0, elements.begin(), elements.end());
+  for (unsigned i = 0; i < test_list->Size(); ++i) {
+    std::cout << (*test_list)[i] << ' ';
+  }
+  std::cout << std::endl;
+  EXPECT_EQ(test_list->Extract(5), 6);  // 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13
+  for (unsigned i = 0; i < test_list->Size(); ++i) {
+    std::cout << (*test_list)[i] << ' ';
+  }
+  std::cout << '\n';
+  test_list->Extract(0);  // 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13
+  test_list->Extract(6);  // 2, 3, 4, 5, 7, 8, 10, 11, 12, 13
+  test_list->Extract(0);  // 3, 4, 5, 7, 8, 10, 11, 12, 13
+  test_list->Extract(1);  // 3, 5, 7, 8, 10, 11, 12, 13
+  test_list->Extract(1);  // 3, 7, 8, 10, 11, 12, 13
+  test_list->Extract(0);  // 7, 8, 10, 11, 12, 13
+  test_list->Extract(0);  // 8, 10, 11, 12, 13
+  test_list->Extract(2);  // 7, 8, 11, 12, 13
+  test_list->Extract(3);  // 7, 8, 11, 13
+  test_list->Extract(2);  // 7, 8, 13
+  test_list->Extract(2);  // 7, 8
+  test_list->Extract(1);  // 7
+  EXPECT_EQ(test_list->Size(), 1);
+
+  EXPECT_EQ(boost::filesystem::remove(filename), true);
 }

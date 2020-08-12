@@ -2,6 +2,7 @@
 // Created by gogagum on 16.07.2020.
 //
 
+#include <boost/iostreams/device/mapped_file.hpp>
 #include "data_info.hpp"
 #include "block_rw.hpp"
 
@@ -12,6 +13,10 @@
 
 typedef uint64_t file_pos_t;
 typedef int64_t signed_file_pos_t;
+
+inline int ceil_div(int a, int b) {
+  return (a - 1) / b + 1;
+}
 
 template <typename ElementType>
 class Allocator{
@@ -84,7 +89,9 @@ Allocator<ElementType>::Allocator(
 ) : _mapped_file_ptr(mapped_file_ptr),
     _file_params_ptr(file_params_ptr),
     _block_size(block_size),
-    _block_rw(mapped_file_ptr, sizeof(DataInfo), block_size),
+    _block_rw(mapped_file_ptr,
+              ceil_div(sizeof(DataInfo), boost::interprocess::mapped_region::get_page_size()),
+              block_size),
     _data_info_ptr(data_info_ptr)
 {
   if (!new_file_flag) {
@@ -104,9 +111,9 @@ template <typename ElementType>
 file_pos_t Allocator<ElementType>::NewNode() {
   file_pos_t index_to_return;
   if (_data_info_ptr->_stack_head_pos != -1) {
-    index_to_return = _data_info_ptr->_stack_head_pos;
+    index_to_return = static_cast<file_pos_t>(_data_info_ptr->_stack_head_pos);
     _data_info_ptr->_stack_head_pos =
-        *(_block_rw.GetBlockPtr<unsigned>(_data_info_ptr->_stack_head_pos));
+        *(_block_rw.GetBlockPtr<signed_file_pos_t>(_data_info_ptr->_stack_head_pos));
   } else {
     index_to_return = _data_info_ptr->_free_tail_start;
     ++_data_info_ptr->_free_tail_start;

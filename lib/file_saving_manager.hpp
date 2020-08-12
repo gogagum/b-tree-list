@@ -17,10 +17,6 @@
 // File saving manager                                                        //
 ////////////////////////////////////////////////////////////////////////////////
 
-inline int ceil_div(int a, int b) {
-  return (a - 1) / b + 1;
-}
-
 template <typename ElementType, size_t T>
 class FileSavingManager{
  private:
@@ -92,7 +88,8 @@ FileSavingManager<ElementType, T>::FileSavingManager(
 ) : _page_size(boost::interprocess::mapped_region::get_page_size()),
     _data_info_ptr(data_info_ptr),
     _file_params_ptr(
-        std::make_shared<boost::iostreams::mapped_file_params>(destination)) {
+        std::make_shared<boost::iostreams::mapped_file_params>(destination)
+    ) {
   _node_params._info_size = sizeof(struct Node<ElementType, T>::_NodeInfo);
   _node_params._pages_cnt =
       ceil_div(Node<ElementType, T>::inmemory_size, _page_size);
@@ -108,17 +105,16 @@ FileSavingManager<ElementType, T>::FileSavingManager(
   _file_params_ptr->flags = boost::iostreams::mapped_file::mapmode::readwrite;
   _file_params_ptr->offset = 0;
   // Opening file
-
   _mapped_file_ptr =
       std::make_shared<boost::iostreams::mapped_file>(*_file_params_ptr);
   _block_rw = BlockRW(_mapped_file_ptr,
-                      Allocator<ElementType>::data_info_size,
+                      ceil_div(sizeof(DataInfo), _page_size),
                       _page_size * _node_params._pages_cnt);
   _allocator = Allocator<ElementType>(_mapped_file_ptr,
-                                       _file_params_ptr,
-                                       _data_info_ptr,
-                                       _node_params._pages_cnt * _page_size,
-                                       _new_file_flag);
+                                      _file_params_ptr,
+                                      _data_info_ptr,
+                                      _node_params._pages_cnt * _page_size,
+                                      _new_file_flag);
 }
 
 template <typename ElementType, size_t T>
@@ -147,7 +143,7 @@ void FileSavingManager<ElementType, T>::SetNode(
     file_pos_t pos,
     const Node<ElementType, T>& node_to_set
 ) {
-  *_block_rw.GetInfoPtr<ElementType, T>(pos) = node_to_set.GetNodeInfo();
+  *_block_rw.GetNodeInfoPtr<ElementType, T>(pos) = node_to_set.GetNodeInfo();
 
   for (unsigned i = 0; i < node_to_set.Size(); ++i) {
     *_block_rw.GetNodeElementPtr<ElementType, T>(pos, i) =
@@ -169,7 +165,7 @@ Node<ElementType, T> FileSavingManager<ElementType, T>::GetNode(
 ) const {
   Node<ElementType, T> taken_node;
   struct Node<ElementType, T>::_NodeInfo taken_info =
-      *_block_rw.GetInfoPtr<ElementType, T>(pos);
+      *_block_rw.GetNodeInfoPtr<ElementType, T>(pos);
   taken_node.Resize(taken_info._elements_cnt);
   taken_node._flags = taken_info._flags;
 

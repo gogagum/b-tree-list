@@ -76,6 +76,9 @@ class Node{
 
   void Insert(unsigned i, const ElementType &e);
 
+  template <typename IteratorType>
+  void Insert(unsigned i, const IteratorType &begin, const IteratorType &end);
+
   //////////////////////////////////////////////////////////////////////////////
 
   ElementType Extract(unsigned i);
@@ -132,7 +135,7 @@ class Node{
 
   _NodeInfo GetNodeInfo() const;
 
-  ~Node();
+  //~Node();
 
   //////////////////////////////////////////////////////////////////////////////
   // Parameters structs and enums declaration                                 //
@@ -195,9 +198,9 @@ class Node{
 
 template <typename _ElementType, size_t T>
 Node<_ElementType, T>::Node()
-  : _elements(std::vector<_ElementType>(0)),
-    _links(std::vector<file_pos_t>(1, 0)),
-    _children_cnts(std::vector<size_t>(1, 0)),
+  : _elements(0),
+    _links(1, static_cast<file_pos_t>(0)),
+    _children_cnts(1, static_cast<size_t>(0)),
     _flags(_Flags::ROOT | _Flags::LEAF) {}
 
 template <typename _ElementType, size_t T>
@@ -341,6 +344,24 @@ void Node<_ElementType, T>::Insert(unsigned i, const _ElementType &e) {
   _elements.insert(_elements.begin() + i, e);
   _links.insert(_links.begin() + i + 1, 0);
   _children_cnts.insert(_children_cnts.begin() + i + 1, 0);
+}
+
+template<typename ElementType, size_t T>
+template<typename IteratorType>
+void Node<ElementType, T>::Insert(unsigned int i,
+                                  const IteratorType &begin,
+                                  const IteratorType &end) {
+  // TODO: Find out how to check if iterator is random access
+  int cnt = end - begin;
+  _elements.insert(_elements.begin() + i, begin, end);
+  std::vector<file_pos_t> links_to_insert(cnt, 0);
+  _links.insert(_links.begin() + i + 1,
+                links_to_insert.begin(),
+                links_to_insert.end());
+  std::vector<size_t> cnts_to_insert(cnt, 0);
+  _children_cnts.insert(_children_cnts.begin() + i + 1,
+                        cnts_to_insert.begin(),
+                        cnts_to_insert.end());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -503,8 +524,8 @@ size_t Node<ElementType, T>::Size() const {
 template <typename ElementType, size_t T>
 void Node<ElementType, T>::Resize(size_t new_size) {
   _elements.resize(new_size);
-  _links.resize(new_size + 1);
-  _children_cnts.resize(new_size + 1);
+  _links.resize(new_size + 1, static_cast<file_pos_t >(0));
+  _children_cnts.resize(new_size + 1, static_cast<size_t >(0));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -515,8 +536,8 @@ Node<ElementType, T>::GetNodeInfo() const {
   return Node<ElementType, T>::_NodeInfo{_elements.size(), _flags};
 }
 
-template <typename ElementType, size_t T>
-Node<ElementType, T>::~Node() = default;
+//template <typename ElementType, size_t T>
+//Node<ElementType, T>::~Node() = default;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Friend functions                                                           //
@@ -529,6 +550,7 @@ Node<ElementType, T> Connect(const Node<ElementType, T> &left_node,
   Node<ElementType, T> node_to_return = left_node;
   node_to_return.ConnectWith(e, right_node);
   return node_to_return;
-};
+}
+
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_
