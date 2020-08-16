@@ -3,3 +3,5 @@ cmake-build-debug/
 lib/googletest/
 *test_data
 stress_tests/try3/.ipynb_checkpoints/
+stress_tests/analysis/after_adding_memcpy/.ipynb_checkpoints/speed-analysis-checkpoint.ipynb
+stress_tests/analysis/before_adding_memcpy/.ipynb_checkpoints/speed-analysis-checkpoint.ipynb
