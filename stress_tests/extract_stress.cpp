@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <cstddef>
 #include <chrono>
@@ -13,9 +14,10 @@
 #ifndef EXTRACT_STRESS_CPP
 #define EXTRACT_STRESS_CPP
 
-auto TestExtracts(size_t size_of_btree, size_t extracts_cnt) {
-  std::string file_name = "extracts_stress_test_data";
-  auto* test_list = new BTreeList<int, 200>(file_name, size_of_btree, false);
+auto TestExtracts(size_t extracts_cnt, const std::string& file_name) {
+  std::string in_test_filename = file_name + "_copy";
+  std::filesystem::copy(file_name, in_test_filename);
+  auto* test_list = new BTreeList<int, 200>(in_test_filename, false);
 
   auto start = std::chrono::high_resolution_clock::now();
   for(unsigned i = 0; i < extracts_cnt; ++i) {
@@ -27,24 +29,28 @@ auto TestExtracts(size_t size_of_btree, size_t extracts_cnt) {
   auto finish = std::chrono::high_resolution_clock::now();
 
   delete test_list;
-  boost::filesystem::remove(file_name);
+  std::filesystem::remove(in_test_filename);
 
   return std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count();
 }
 
-void RunExtractsTestPack() {
+void RunExtractsTestPack(size_t max_size, size_t operations_cnt) {
   const size_t step = 10;
-  const size_t max_size = 10000000;
 
   for (size_t size_of_btree = step; size_of_btree <= max_size; size_of_btree *= step) {
     std::string results_file_name = "extracts_test_" + std::to_string(size_of_btree) + ".txt";
     std::ofstream file;
     file.open(results_file_name, std::ios_base::trunc);
 
+    std::string file_name = "extracts_test_data";
+    auto* test_list = new BTreeList<int, 200>(file_name, size_of_btree, 0, false);
+    delete test_list;
+
     for (unsigned i = 0; i < 50; ++i) {
-      auto extracts_cnt = std::min(size_of_btree / step, static_cast<size_t>(1000));
-      file << TestExtracts(size_of_btree, extracts_cnt) / extracts_cnt << std::endl;
+      auto extracts_cnt = std::min(size_of_btree / step, static_cast<size_t>(operations_cnt));
+      file << TestExtracts(extracts_cnt, file_name) / extracts_cnt << std::endl;
     }
+    std::filesystem::remove(file_name);
     file.close();
   }
 }
