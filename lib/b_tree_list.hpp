@@ -13,38 +13,53 @@
 #ifndef B_TREE_LIST_LIBRARY_H
 #define B_TREE_LIST_LIBRARY_H
 
-////////////////////////////////////////////////////////////////////////////////
-// Subsidiary classes                                                         //
-////////////////////////////////////////////////////////////////////////////////
-
 template <typename ElementType, size_t T = 200>
 class BTreeList{
  public:
 
-  explicit BTreeList(const std::string &filename,
-                     size_t size = 0,
-                     bool rebuild_flag = true);
+  // Simple constructor.
+  // If file with filename name exists, tries open it as data file.
+  // If not exists creates new empty file.
+  explicit BTreeList(const std::string &filename, bool rebuild_flag = true);
 
+  // Creates file for tree of size size
+  // If file with such name exists truncates it
+  template <typename SizeType>
+  BTreeList(const std::string &filename,
+            SizeType size,
+            bool rebuild_flag = true);
+
+  // Creates file for tree of size size and fills it with element_to_fill.
+  // If file with such name exists truncates it.
+  BTreeList(const std::string &filename,
+            size_t size,
+            const ElementType &element_to_fill,
+            bool rebuild_flag = true);
+
+  // Creates file of size suitable to iterators given
+  // If file with such name exists truncates it.
   template <typename IteratorType>
   BTreeList(const std::string &filename,
             IteratorType begin, IteratorType end,
             bool rebuild_flag = true);
 
+  // Insert element to index position.
   void Insert(unsigned index, const ElementType& e);
 
+  // Insert elements from iterators range starting with index position.
   template <typename IteratorType>
   void Insert(unsigned index, IteratorType begin, IteratorType end);
 
+  // Extract element from index position
   ElementType Extract(unsigned index);
 
-  void Set(unsigned index, const ElementType& e);
-
-  ElementType Get(unsigned index);
-
+  // Access to element by index
   ElementType& operator[](unsigned index);
 
+  // Access to element by index
   ElementType operator[](unsigned index) const;
 
+  // Get size of structure
   [[nodiscard]] size_t Size() const;
 
   ~BTreeList();
@@ -56,7 +71,6 @@ class BTreeList{
 
   std::shared_ptr<DataInfo> _data_info_ptr;
 
-  Node<ElementType, T> _in_memory_node;
   FileSavingManager<ElementType, T> _file_manager;
 
   bool _rebuild_flag;
@@ -65,8 +79,16 @@ class BTreeList{
   // Private methods                                                          //
   //////////////////////////////////////////////////////////////////////////////
 
+  void _ResizeFromEmpty(size_t size);
+
+  void _ResizeFromEmpty(size_t size, const ElementType &element_to_fill);
+
   template <typename IteratorType>
   void _Insert(unsigned &index, IteratorType &begin, IteratorType &end);
+
+  void _AllocateBackElements(size_t &cnt,
+                             const ElementType& element_to_fill,
+                             bool need_to_set_flag);
 
   unsigned _FindInNodeIndex(const Node<ElementType, T> &node,
                             int64_t &elements_to_skip);
@@ -125,13 +147,32 @@ class BTreeList{
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename ElementType, size_t T>
-BTreeList<ElementType, T>::BTreeList(const std::string &filename, size_t size, bool rebuild_flag)
-  : _in_memory_node(),
-    _data_info_ptr(std::make_shared<DataInfo>()),
-    _file_manager(filename, _in_memory_node, _data_info_ptr),
+BTreeList<ElementType, T>::BTreeList(const std::string &filename,
+                                     bool rebuild_flag)
+    : _data_info_ptr(std::make_shared<DataInfo>()),
+      _file_manager(filename, _data_info_ptr, false),
+      _rebuild_flag(rebuild_flag) {}
+
+template <typename ElementType, size_t T>
+template <typename SizeType>
+BTreeList<ElementType, T>::BTreeList(const std::string &filename,
+                                     SizeType size,
+                                     bool rebuild_flag)
+  : _data_info_ptr(std::make_shared<DataInfo>()),
+    _file_manager(filename, _data_info_ptr, true),
     _rebuild_flag(rebuild_flag) {
-  std::vector<ElementType> filler_vector(size);
-  Insert(0, filler_vector.begin(), filler_vector.end());
+  _ResizeFromEmpty(size);
+}
+
+template <typename ElementType, size_t T>
+BTreeList<ElementType, T>::BTreeList(const std::string &filename,
+                                     size_t size,
+                                     const ElementType& element,
+                                     bool rebuild_flag)
+    : _data_info_ptr(std::make_shared<DataInfo>()),
+      _file_manager(filename, _data_info_ptr, true),
+      _rebuild_flag(rebuild_flag) {
+  _ResizeFromEmpty(size, element);
 }
 
 template <typename ElementType, size_t T>
@@ -140,9 +181,8 @@ BTreeList<ElementType, T>::BTreeList(const std::string &filename,
                                      IteratorType begin,
                                      IteratorType end,
                                      bool rebuild_flag)
-  : _in_memory_node(),
-    _data_info_ptr(std::make_shared<DataInfo>()),
-    _file_manager(filename, _in_memory_node, _data_info_ptr),
+  : _data_info_ptr(std::make_shared<DataInfo>()),
+    _file_manager(filename, _data_info_ptr, true),
     _rebuild_flag(rebuild_flag) {
   Insert(0, begin, end);
 }
@@ -220,16 +260,6 @@ void BTreeList<ElementType, T>::Insert(unsigned index,
 }
 
 template <typename ElementType, size_t T>
-void BTreeList<ElementType, T>::Set(unsigned index, const ElementType& e) {
-  file_pos_t file_pos = _data_info_ptr->_root_pos;
-  unsigned in_node_index;
-
-  Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
-  node.Element(in_node_index) = e;
-  _file_manager.SetNode(file_pos, node);
-}
-
-template <typename ElementType, size_t T>
 ElementType& BTreeList<ElementType, T>::operator[](unsigned index) {
   file_pos_t file_pos = _data_info_ptr->_root_pos;
   unsigned in_node_index;
@@ -253,14 +283,14 @@ ElementType BTreeList<ElementType, T>::operator[](unsigned index) const {
   );
 };
 
-template <typename ElementType, size_t T>
-ElementType BTreeList<ElementType, T>::Get(unsigned index) {
-  file_pos_t file_pos = _data_info_ptr->_root_pos;
-  unsigned in_node_index;
-
-  Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
-  return node._elements[in_node_index];
-}
+//template <typename ElementType, size_t T>
+//ElementType BTreeList<ElementType, T>::Get(unsigned index) {
+//  file_pos_t file_pos = _data_info_ptr->_root_pos;
+//  unsigned in_node_index;
+//
+//  Node<ElementType, T> node = _FindElement(index, file_pos, in_node_index);
+//  return node._elements[in_node_index];
+//}
 
 template<typename ElementType, size_t T>
 ElementType BTreeList<ElementType, T>::Extract(unsigned index) {
@@ -280,7 +310,7 @@ ElementType BTreeList<ElementType, T>::Extract(unsigned index) {
     _FindAppropriateInLeafElement(file_pos_path, indexes_path);
     ElementType element_from_leaf = _ExtractFromLeaf(file_pos_path,
                                                      indexes_path);
-    Set(index, element_from_leaf);
+    (*this)[index] = element_from_leaf;
   }
   return element_to_extract;
 }
@@ -294,6 +324,30 @@ size_t BTreeList<ElementType, T>::Size() const {
 // Private methods                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+template <typename ElementType, size_t T>
+void BTreeList<ElementType, T>::_ResizeFromEmpty(size_t size) {
+  while (size != 0) {
+    _AllocateBackElements(size, 0, false);
+    if (size != 0) {
+      Insert(Size() - 1, 0);
+      --size;
+    }
+  }
+}
+
+template <typename ElementType, size_t T>
+void BTreeList<ElementType, T>::_ResizeFromEmpty(
+    size_t size,
+    const ElementType &element_to_fill
+) {
+  while (size != 0) {
+    _AllocateBackElements(size, element_to_fill, true);
+    if (size != 0) {
+      Insert(Size() - 1, element_to_fill);
+      --size;
+    }
+  }
+}
 
 template <typename ElementType, size_t T>
 template <typename IteratorType>
@@ -324,6 +378,33 @@ void BTreeList<ElementType, T>::_Insert(
   index += elements_to_insert;
   _data_info_ptr->_size += elements_to_insert;
   _CorrectChildrenCnts(file_pos_path, indexes_path, elements_to_insert);
+}
+
+template <typename ElementType, size_t T>
+void BTreeList<ElementType, T>::_AllocateBackElements(
+    size_t &cnt,
+    const ElementType &element_to_fill,
+    bool need_to_set_flag
+) {
+  std::vector<file_pos_t> file_pos_path;
+  std::vector<unsigned> indexes_path;
+  _FindPathToLeafByIndex(Size(), file_pos_path, indexes_path);
+
+  file_pos_t leaf_file_pos = file_pos_path.back();
+  file_pos_path.pop_back();
+  indexes_path.pop_back();
+
+  auto leaf_node = _file_manager.GetNode(leaf_file_pos);
+  unsigned elements_to_allocate = std::min(2 * T - 2 - leaf_node.Size(), cnt);
+  if (need_to_set_flag) {
+    leaf_node.Resize(leaf_node.Size() + elements_to_allocate, element_to_fill);
+  } else {
+    leaf_node.Resize(leaf_node.Size() + elements_to_allocate);
+  }
+  _file_manager.SetNode(leaf_file_pos, leaf_node);
+  cnt -= elements_to_allocate;
+  _data_info_ptr->_size += elements_to_allocate;
+  _CorrectChildrenCnts(file_pos_path, indexes_path, elements_to_allocate);
 }
 
 template <typename ElementType, size_t T>
@@ -647,11 +728,10 @@ void BTreeList<ElementType, T>::_Rebuild() {
   new_data_info_ptr->_size = _data_info_ptr->_size;
   new_data_info_ptr->_stack_head_pos = -1;
   new_data_info_ptr->_free_tail_start = _data_info_ptr->_size;
-  new_data_info_ptr->_in_memory_node_pos = _data_info_ptr->_size - 1;
   FileSavingManager<ElementType, T> new_file_manager("data_tmp", new_data_info_ptr);
-  file_pos_t last_added_node_pos = 1;
+  file_pos_t last_added_node_pos = 0;
   file_pos_t curr_pos = 0;
-  new_file_manager.NewNode(_file_manager.GetNode(_data_info_ptr->_root_pos));
+  new_file_manager.SetNode(curr_pos, _file_manager.GetNode(_data_info_ptr->_root_pos));
   do {
     Node<ElementType, T> curr_node = new_file_manager.GetNode(curr_pos);
     if (!curr_node.GetIsLeaf()) {
@@ -666,12 +746,10 @@ void BTreeList<ElementType, T>::_Rebuild() {
     }
     ++curr_pos;
   } while (curr_pos < last_added_node_pos);
-  _file_manager.~FileSavingManager();
   _file_manager = new_file_manager;
-  boost::filesystem::remove(restored_name);
+  std::filesystem::remove(restored_name);
   _file_manager.RenameMappedFile(restored_name);
   _data_info_ptr = new_data_info_ptr;
-  _in_memory_node = _file_manager.GetNode(_data_info_ptr->_in_memory_node_pos);
 }
 
 template <typename ElementType, size_t T>

@@ -16,7 +16,6 @@ struct DataInfo{
   file_pos_t _free_tail_start;
   file_pos_t _max_blocks_cnt;
   file_pos_t _root_pos;
-  file_pos_t _in_memory_node_pos;
   size_t _size;
 };
 

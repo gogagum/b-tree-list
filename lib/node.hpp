@@ -6,12 +6,17 @@
 #include <cstdlib>
 #include <utility>
 #include <vector>
+#include <boost/interprocess/mapped_region.hpp>
 
 #ifndef B_TREE_LIST_LIB__NODE_HPP_
 #define B_TREE_LIST_LIB__NODE_HPP_
 
 typedef uint64_t file_pos_t;
 typedef int64_t signed_file_pos_t;
+
+inline int CeilDiv(int a, int b) {
+  return (a - 1) / b + 1;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Node                                                                       //
@@ -43,15 +48,15 @@ class Node{
   Node(Node<ElementType, T> &&other);
 
   //////////////////////////////////////////////////////////////////////////////
+  // Assign operator                                                          //
+  //////////////////////////////////////////////////////////////////////////////
 
   Node<ElementType, T>& operator=(Node<ElementType, T> &&other);
 
   Node<ElementType, T>& operator=(const Node<ElementType, T> &other);
 
   //////////////////////////////////////////////////////////////////////////////
-
-  void PushBack(const ElementType& e);
-
+  // Getters/setters                                                          //
   //////////////////////////////////////////////////////////////////////////////
 
   ElementType& Element(unsigned i);
@@ -60,25 +65,37 @@ class Node{
 
   file_pos_t& LinkBefore(unsigned i);
 
-  void SetLinks(unsigned i, file_pos_t link_before, file_pos_t link_after);
+  [[maybe_unused]] file_pos_t LinkAfter(unsigned i) const;
 
-  void SetChildrenCnts(unsigned i, size_t cc_before, size_t cc_after);
+  file_pos_t LinkBefore(unsigned i) const;
 
   size_t& ChildrenCntAfter(unsigned i);
 
   size_t& ChildrenCntBefore(unsigned i);
 
-  size_t ChildrenCntAfter(unsigned i) const;
+  [[maybe_unused]] size_t ChildrenCntAfter(unsigned i) const;
 
-  size_t ChildrenCntBefore(unsigned i) const;
+  [[maybe_unused]] size_t ChildrenCntBefore(unsigned i) const;
+
+  void SetLinks(unsigned i, file_pos_t link_before, file_pos_t link_after);
+
+  void SetChildrenCnts(unsigned i, size_t cc_before, size_t cc_after);
+
+  _NodeInfo GetNodeInfo() const;
 
   //////////////////////////////////////////////////////////////////////////////
+  // Adding elements methods                                                  //
+  //////////////////////////////////////////////////////////////////////////////
+
+  void PushBack(const ElementType& e);
 
   void Insert(unsigned i, const ElementType &e);
 
   template <typename IteratorType>
   void Insert(unsigned i, const IteratorType &begin, const IteratorType &end);
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Extract methods                                                          //
   //////////////////////////////////////////////////////////////////////////////
 
   ElementType Extract(unsigned i);
@@ -91,8 +108,6 @@ class Node{
 
   size_t ExtractChildrenCntBefore(unsigned i);
 
-  //////////////////////////////////////////////////////////////////////////////
-
   file_pos_t ExtractBackLink();
 
   size_t ExtractBackChildrenCnt();
@@ -100,17 +115,23 @@ class Node{
   ElementType ExtractBack();
 
   //////////////////////////////////////////////////////////////////////////////
+  // Separation functions                                                     //
+  //////////////////////////////////////////////////////////////////////////////
 
   Node<ElementType, T> NodeFromFirstHalf();
 
   Node<ElementType, T> NodeFromSecondHalf();
 
-  ElementType GetMiddleElement();
+  ElementType GetMiddleElement() const;
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Connect                                                                  //
   //////////////////////////////////////////////////////////////////////////////
 
   void ConnectWith(ElementType e, const Node<ElementType, T> &other);
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Flags setters/getters                                                    //
   //////////////////////////////////////////////////////////////////////////////
 
   [[nodiscard]] bool GetIsRoot() const;
@@ -119,23 +140,29 @@ class Node{
 
   [[nodiscard]] bool GetIsLeaf() const;
 
-  void SetIsLeaf(bool flag_to_set);
+  [[maybe_unused]] void SetIsLeaf(bool flag_to_set);
 
   //////////////////////////////////////////////////////////////////////////////
-
-  size_t GetAllChildrenCnt();
-
+  // Size getters                                                             //
   //////////////////////////////////////////////////////////////////////////////
+
+  [[nodiscard]] size_t GetAllChildrenCnt() const;
 
   [[nodiscard]] size_t Size() const;
 
-  void Resize(size_t new_size);
+  [[nodiscard]] size_t ElementsArraySize() const;
+
+  [[nodiscard]] size_t LinksArraySize() const;
+
+  [[nodiscard]] size_t CCArraySize() const;
 
   //////////////////////////////////////////////////////////////////////////////
+  // Resize functions                                                         //
+  //////////////////////////////////////////////////////////////////////////////
 
-  _NodeInfo GetNodeInfo() const;
+  void Resize(size_t new_size);
 
-  //~Node();
+  void Resize(size_t new_size, const ElementType& element_type);
 
   //////////////////////////////////////////////////////////////////////////////
   // Parameters structs and enums declaration                                 //
@@ -164,6 +191,7 @@ class Node{
   // Static fields                                                            //
   //////////////////////////////////////////////////////////////////////////////
 
+  const static size_t info_size = sizeof(struct _NodeInfo);
   const static ptrdiff_t elements_offset = sizeof(struct _NodeInfo);
   const static ptrdiff_t links_offset =
       sizeof(struct _NodeInfo) + (2 * T - 1) * sizeof(ElementType);
@@ -266,7 +294,7 @@ Node<_ElementType, T>& Node<_ElementType, T>::operator=(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Getters                                                                    //
+// Getters/setters                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType, size_t T>
@@ -282,6 +310,36 @@ file_pos_t& Node<_ElementType, T>::LinkAfter(unsigned i) {
 template <typename _ElementType, size_t T>
 file_pos_t& Node<_ElementType, T>::LinkBefore(unsigned i) {
   return _links[i];
+}
+
+template <typename _ElementType, size_t T>
+[[maybe_unused]] file_pos_t Node<_ElementType, T>::LinkAfter(unsigned i) const {
+  return _links[i + 1];
+}
+
+template <typename _ElementType, size_t T>
+file_pos_t Node<_ElementType, T>::LinkBefore(unsigned i) const {
+  return _links[i];
+}
+
+template <typename _ElementType, size_t T>
+size_t& Node<_ElementType, T>::ChildrenCntAfter(unsigned i) {
+  return _children_cnts[i + 1];
+}
+
+template <typename _ElementType, size_t T>
+size_t& Node<_ElementType, T>::ChildrenCntBefore(unsigned i) {
+  return _children_cnts[i];
+}
+
+template <typename _ElementType, size_t T>
+[[maybe_unused]] size_t Node<_ElementType, T>::ChildrenCntAfter(unsigned i) const {
+  return _children_cnts[i + 1];
+}
+
+template <typename _ElementType, size_t T>
+[[maybe_unused]] size_t Node<_ElementType, T>::ChildrenCntBefore(unsigned i) const {
+  return _children_cnts[i];
 }
 
 template <typename _ElementType, size_t T>
@@ -304,28 +362,14 @@ void Node<_ElementType, T>::SetChildrenCnts(
   ChildrenCntAfter(i) = cc_after;
 }
 
-template <typename _ElementType, size_t T>
-size_t& Node<_ElementType, T>::ChildrenCntAfter(unsigned i) {
-  return _children_cnts[i + 1];
-}
-
-template <typename _ElementType, size_t T>
-size_t& Node<_ElementType, T>::ChildrenCntBefore(unsigned i) {
-  return _children_cnts[i];
-}
-
-template <typename _ElementType, size_t T>
-size_t Node<_ElementType, T>::ChildrenCntAfter(unsigned i) const {
-  return _children_cnts[i + 1];
-}
-
-template <typename _ElementType, size_t T>
-size_t Node<_ElementType, T>::ChildrenCntBefore(unsigned i) const {
-  return _children_cnts[i];
+template <typename ElementType, size_t T>
+struct Node<ElementType, T>::_NodeInfo
+Node<ElementType, T>::GetNodeInfo() const {
+  return Node<ElementType, T>::_NodeInfo{Size(), _flags};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Push backs                                                                 //
+// Adding elements                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType, size_t T>
@@ -334,10 +378,6 @@ void Node<_ElementType, T>::PushBack(const _ElementType &e) {
   _links.push_back(0);
   _children_cnts.push_back(0);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Inserts                                                                    //
-////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType, size_t T>
 void Node<_ElementType, T>::Insert(unsigned i, const _ElementType &e) {
@@ -351,7 +391,6 @@ template<typename IteratorType>
 void Node<ElementType, T>::Insert(unsigned int i,
                                   const IteratorType &begin,
                                   const IteratorType &end) {
-  // TODO: Find out how to check if iterator is random access
   int cnt = end - begin;
   _elements.insert(_elements.begin() + i, begin, end);
   std::vector<file_pos_t> links_to_insert(cnt, 0);
@@ -403,10 +442,6 @@ size_t Node<_ElementType, T>::ExtractChildrenCntBefore(unsigned i) {
   return cnt;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Extract back                                                               //
-////////////////////////////////////////////////////////////////////////////////
-
 template <typename _ElementType, size_t T>
 file_pos_t Node<_ElementType, T>::ExtractBackLink() {
   file_pos_t index = _links.back();
@@ -429,7 +464,7 @@ _ElementType Node<_ElementType, T>::ExtractBack() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Separators                                                                 //
+// Separation functions                                                       //
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType, size_t T>
@@ -459,9 +494,13 @@ Node<_ElementType, T> Node<_ElementType, T>::NodeFromSecondHalf() {
 }
 
 template <typename _ElementType, size_t T>
-_ElementType Node<_ElementType, T>::GetMiddleElement() {
+_ElementType Node<_ElementType, T>::GetMiddleElement() const {
   return *(_elements.begin() + _elements.size() / 2);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Connect                                                                    //
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename _ElementType, size_t T>
 void Node<_ElementType, T>::ConnectWith(_ElementType e,
@@ -496,14 +535,16 @@ bool Node<ElementType, T>::GetIsLeaf() const {
 }
 
 template <typename ElementType, size_t T>
-void Node<ElementType, T>::SetIsLeaf(bool flag_to_set) {
+[[maybe_unused]] void Node<ElementType, T>::SetIsLeaf(bool flag_to_set) {
   _flags = (_flags & ~2UL) | (flag_to_set << 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Size getters                                                               //
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename ElementType, size_t T>
-size_t Node<ElementType, T>::GetAllChildrenCnt() {
+size_t Node<ElementType, T>::GetAllChildrenCnt() const {
   size_t sum = 0;
   for (auto i: _children_cnts) {
     sum += i;
@@ -512,13 +553,28 @@ size_t Node<ElementType, T>::GetAllChildrenCnt() {
   return sum;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
 template <typename ElementType, size_t T>
 size_t Node<ElementType, T>::Size() const {
   return _elements.size();
 }
 
+template <typename ElementType, size_t T>
+size_t Node<ElementType, T>::ElementsArraySize() const {
+  return _elements.size() * sizeof(ElementType);
+}
+
+template <typename ElementType, size_t T>
+size_t Node<ElementType, T>::LinksArraySize() const {
+  return _links.size() * sizeof(file_pos_t);
+}
+
+template <typename ElementType, size_t T>
+size_t Node<ElementType, T>::CCArraySize() const {
+  return _children_cnts.size() * sizeof(size_t);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Resize functions                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename ElementType, size_t T>
@@ -528,16 +584,13 @@ void Node<ElementType, T>::Resize(size_t new_size) {
   _children_cnts.resize(new_size + 1, static_cast<size_t >(0));
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
 template <typename ElementType, size_t T>
-struct Node<ElementType, T>::_NodeInfo
-Node<ElementType, T>::GetNodeInfo() const {
-  return Node<ElementType, T>::_NodeInfo{_elements.size(), _flags};
+void Node<ElementType, T>::Resize(size_t new_size,
+                                  const ElementType& element_to_fill) {
+  _elements.resize(new_size, element_to_fill);
+  _links.resize(new_size + 1, static_cast<file_pos_t >(0));
+  _children_cnts.resize(new_size + 1, static_cast<size_t >(0));
 }
-
-//template <typename ElementType, size_t T>
-//Node<ElementType, T>::~Node() = default;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Friend functions                                                           //
@@ -551,6 +604,5 @@ Node<ElementType, T> Connect(const Node<ElementType, T> &left_node,
   node_to_return.ConnectWith(e, right_node);
   return node_to_return;
 }
-
 
 #endif //B_TREE_LIST_LIB__NODE_HPP_

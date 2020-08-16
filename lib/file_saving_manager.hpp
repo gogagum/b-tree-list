@@ -1,5 +1,5 @@
 #include <vector>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <boost/interprocess/mapped_region.hpp>
 #include "data_info.hpp"
 #include "allocator.hpp"
@@ -13,6 +13,11 @@
 #ifndef B_TREE_LIST_LIB__FILE_SAVING_MANAGER_HPP_
 #define B_TREE_LIST_LIB__FILE_SAVING_MANAGER_HPP_
 
+inline size_t GetPagesSize(size_t inmemory_size) {
+  return CeilDiv(inmemory_size,
+                 boost::interprocess::mapped_region::get_page_size());
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // File saving manager                                                        //
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,41 +29,35 @@ class FileSavingManager{
   // Functions                                                                //
   //////////////////////////////////////////////////////////////////////////////
 
+  // File manager constructor
   FileSavingManager(const std::string &destination,
-                    const std::shared_ptr<DataInfo> &data_info_ptr);
+                    const std::shared_ptr<DataInfo> &data_info_ptr,
+                    bool file_creation_expected = false);
 
-  FileSavingManager(const std::string &destination,
-                    Node<ElementType, T> &in_memory_node,
-                    const std::shared_ptr<DataInfo> &data_info_ptr);
-
+  // Set node to the position pos
   void SetNode(file_pos_t pos, const Node<ElementType, T> &node_to_set);
 
+  // Get node from position pos
   Node<ElementType, T> GetNode(file_pos_t pos) const;
 
+  // Add new node to memory and return position
   file_pos_t NewNode();
 
+  // Add new node to memory and set node to this position
   file_pos_t NewNode(const Node<ElementType, T> &node);
 
+  // Delete node (free memory) from pos position in file
   void DeleteNode(file_pos_t pos);
 
+  // Rename mapped file
   void RenameMappedFile(const std::string &new_name);
 
   ~FileSavingManager();
 
   //////////////////////////////////////////////////////////////////////////////
-  // Parameters structs declaration                                           //
-  //////////////////////////////////////////////////////////////////////////////
-
-  struct _NodeParams{
-    size_t _info_size;
-    size_t _pages_cnt;
-  };
-
-  //////////////////////////////////////////////////////////////////////////////
   // Fields                                                                   //
   //////////////////////////////////////////////////////////////////////////////
 
-  _NodeParams _node_params;
   Allocator<ElementType> _allocator;
   BlockRW _block_rw;
 
@@ -66,7 +65,6 @@ class FileSavingManager{
 
   std::shared_ptr<boost::iostreams::mapped_file> _mapped_file_ptr;
   std::shared_ptr<boost::iostreams::mapped_file_params> _file_params_ptr;
-  size_t _page_size;
   bool _new_file_flag;
 
   //////////////////////////////////////////////////////////////////////////////
@@ -84,21 +82,23 @@ class FileSavingManager{
 template <typename ElementType, size_t T>
 FileSavingManager<ElementType, T>::FileSavingManager(
     const std::string &destination,
-    const std::shared_ptr<DataInfo> &data_info_ptr
-) : _page_size(boost::interprocess::mapped_region::get_page_size()),
-    _data_info_ptr(data_info_ptr),
+    const std::shared_ptr<DataInfo> &data_info_ptr,
+    bool file_creation_expected
+) : _data_info_ptr(data_info_ptr),
     _file_params_ptr(
         std::make_shared<boost::iostreams::mapped_file_params>(destination)
     ) {
-  _node_params._info_size = sizeof(struct Node<ElementType, T>::_NodeInfo);
-  _node_params._pages_cnt =
-      ceil_div(Node<ElementType, T>::inmemory_size, _page_size);
   // Prepare opening
-  _new_file_flag = !boost::filesystem::exists(_file_params_ptr->path);
+  size_t page_size = boost::interprocess::mapped_region::get_page_size();
+  _new_file_flag = !std::filesystem::exists(_file_params_ptr->path);
+  if (file_creation_expected && _new_file_flag) {
+    std::filesystem::remove(_file_params_ptr->path);
+    _new_file_flag = true;
+  }
   if (_new_file_flag) {
     _file_params_ptr->new_file_size =
         Allocator<ElementType>::data_info_size +
-        _page_size * _node_params._pages_cnt;  // DataInfo + one node
+        GetPagesSize(Node<ElementType, T>::inmemory_size) * page_size;
   } else {
     _file_params_ptr->new_file_size = 0;
   }
@@ -107,34 +107,26 @@ FileSavingManager<ElementType, T>::FileSavingManager(
   // Opening file
   _mapped_file_ptr =
       std::make_shared<boost::iostreams::mapped_file>(*_file_params_ptr);
-  _block_rw = BlockRW(_mapped_file_ptr,
-                      ceil_div(sizeof(DataInfo), _page_size),
-                      _page_size * _node_params._pages_cnt);
-  _allocator = Allocator<ElementType>(_mapped_file_ptr,
-                                      _file_params_ptr,
-                                      _data_info_ptr,
-                                      _node_params._pages_cnt * _page_size,
-                                      _new_file_flag);
-}
-
-template <typename ElementType, size_t T>
-FileSavingManager<ElementType, T>::FileSavingManager(
-    const std::string &destination,
-    Node<ElementType, T> &in_memory_node,
-    const std::shared_ptr<DataInfo> &data_info_ptr
-) : FileSavingManager(destination, data_info_ptr) {
+  _block_rw = BlockRW(
+      _mapped_file_ptr,
+      GetPagesSize(Allocator<ElementType>::data_info_size) * page_size,
+      GetPagesSize(Node<ElementType, T>::inmemory_size) * page_size
+  );
+  _allocator = Allocator<ElementType>(
+      _mapped_file_ptr,
+      _file_params_ptr,
+      _data_info_ptr,
+      GetPagesSize(Node<ElementType, T>::inmemory_size) * page_size,
+      _new_file_flag
+  );
   if (_new_file_flag) {
-    in_memory_node = Node<ElementType, T>(
+    auto root_node = Node<ElementType, T>(
         std::vector<ElementType>{},
         std::vector<file_pos_t>{0},
         std::vector<size_t>{0},
-        Node<ElementType, T>::_Flags::ROOT |
-        Node<ElementType, T>::_Flags::LEAF
+        Node<ElementType, T>::_Flags::ROOT | Node<ElementType, T>::_Flags::LEAF
     );
-    _data_info_ptr->_root_pos = NewNode(in_memory_node);
-    _data_info_ptr->_in_memory_node_pos = _data_info_ptr->_root_pos;
-  } else {
-    in_memory_node = GetNode(_data_info_ptr->_in_memory_node_pos);
+    _data_info_ptr->_root_pos = NewNode(root_node);
   }
 }
 
@@ -145,18 +137,12 @@ void FileSavingManager<ElementType, T>::SetNode(
 ) {
   *_block_rw.GetNodeInfoPtr<ElementType, T>(pos) = node_to_set.GetNodeInfo();
 
-  for (unsigned i = 0; i < node_to_set.Size(); ++i) {
-    *_block_rw.GetNodeElementPtr<ElementType, T>(pos, i) =
-        node_to_set._elements[i];
-  }
-  for (unsigned i = 0; i < node_to_set.Size() + 1; ++i) {
-    *_block_rw.GetNodeLinkPtr<ElementType, T>(pos, i) =
-        node_to_set._links[i];
-  }
-  for (unsigned i = 0; i < node_to_set.Size() + 1; ++i) {
-    *_block_rw.GetNodeCCPtr<ElementType, T>(pos, i) =
-        node_to_set._children_cnts[i];
-  }
+  std::memcpy(_block_rw.GetNodeElementsBegPtr<ElementType, T>(pos),
+              node_to_set._elements.data(), node_to_set.ElementsArraySize());
+  std::memcpy(_block_rw.GetNodeLinksBegPtr<ElementType, T>(pos),
+              node_to_set._links.data(), node_to_set.LinksArraySize());
+  std::memcpy(_block_rw.GetNodeCCBegPtr<ElementType, T>(pos),
+              node_to_set._children_cnts.data(), node_to_set.CCArraySize());
 }
 
 template <typename ElementType, size_t T>
@@ -169,18 +155,15 @@ Node<ElementType, T> FileSavingManager<ElementType, T>::GetNode(
   taken_node.Resize(taken_info._elements_cnt);
   taken_node._flags = taken_info._flags;
 
-  for (unsigned i = 0; i < taken_node.Size(); ++i) {
-    taken_node.Element(i) =
-        *_block_rw.GetNodeElementPtr<ElementType, T>(pos, i);
-  }
-  for (unsigned i = 0; i < taken_node.Size() + 1; ++i) {
-    taken_node.LinkBefore(i) =
-        *_block_rw.GetNodeLinkPtr<ElementType, T>(pos, i);
-  }
-  for (unsigned i = 0; i < taken_node.Size() + 1; ++i) {
-    taken_node.ChildrenCntBefore(i) =
-        *_block_rw.GetNodeCCPtr<ElementType, T>(pos, i);
-  }
+  std::memcpy(taken_node._elements.data(),
+              _block_rw.GetNodeElementsBegPtr<ElementType, T>(pos),
+              taken_node.ElementsArraySize());
+  std::memcpy(taken_node._links.data(),
+              _block_rw.GetNodeLinksBegPtr<ElementType, T>(pos),
+              taken_node.LinksArraySize());
+  std::memcpy(taken_node._children_cnts.data(),
+              _block_rw.GetNodeCCBegPtr<ElementType, T>(pos),
+              taken_node.CCArraySize());
   return taken_node;
 }
 
@@ -208,7 +191,7 @@ void FileSavingManager<ElementType, T>::RenameMappedFile(
     const std::string &new_name
 ) {
   _mapped_file_ptr->close();
-  boost::filesystem::rename(_file_params_ptr->path, new_name);
+  std::filesystem::rename(_file_params_ptr->path, new_name);
   _file_params_ptr->path = new_name;
   _file_params_ptr->new_file_size = 0;
   _file_params_ptr->length = _allocator._file_size;
@@ -217,7 +200,7 @@ void FileSavingManager<ElementType, T>::RenameMappedFile(
 
 template <typename ElementType, size_t T>
 FileSavingManager<ElementType, T>::~FileSavingManager() {
-  *(reinterpret_cast<DataInfo*>(_mapped_file_ptr->data())) = *_data_info_ptr;
+  *_block_rw.GetDataInfoPtr() = *_data_info_ptr;
 }
 
 #endif //B_TREE_LIST_LIB__FILE_SAVING_MANAGER_HPP_

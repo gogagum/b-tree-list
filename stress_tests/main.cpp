@@ -7,9 +7,11 @@
 #include "set_stress.cpp"
 
 void RunAllTests() {
-  RunInsertsTestPack();
-  RunExtractsTestPack();
-  RunSetsTestPack();
+  size_t max_size = 100000000;
+  size_t operations_cnt = 100000;
+  RunInsertsTestPack(max_size, operations_cnt);
+  RunExtractsTestPack(max_size, operations_cnt);
+  RunSetsTestPack(max_size, operations_cnt);
 }
 
 int main() {
