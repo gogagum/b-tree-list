@@ -51,10 +51,15 @@
 -     ElementType operator[](unsigned index) const;
 Оператор доступа по индексу.
 
+-     ElementType& operator[](unsigned index);
+Оператор доступа по индексу.
+
+-     ElementType operator[](unsigned index) const;
+Оператор доступа по индексу.
+
 -     size_t Size() const;
 Узнать размер структуры.
 
 ## Анализ времени работы
-
 [python-notebook файл](./stress_tests/analysis/after_adding_memcpy/speed-analysis.ipynb)
  содержит отчёт о времени выполнения некоторых операций над структурой.
