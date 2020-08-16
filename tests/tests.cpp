@@ -11,18 +11,48 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST(constructor_tests, no_arguments) {
-  auto* test_list = new BTreeList<int, 200>("no_arguments_test_data");
+  std::string data_file_name = "no_arguments_test_data";
+  auto* test_list = new BTreeList<int, 200>(data_file_name);
   EXPECT_EQ(test_list->Size(), 0);
   delete test_list;
-  EXPECT_EQ(std::filesystem::remove("no_arguments_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(constrector_tests, size_argument) {
-  auto test_list = new BTreeList<int, 200>("size_argument_test_data", 5);
+  std::string data_file_name = "size_argument_test_data";
+  auto* test_list = new BTreeList<int, 200>(data_file_name, 5);
   EXPECT_EQ(test_list->Size(), 5);
 
   delete test_list;
-  EXPECT_EQ(std::filesystem::remove("size_argument_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
+}
+
+TEST(constructor_tests, new_btree_with_exisitng_file) {
+  std::string data_file_name = "new_btree_with_existing_file";
+  auto* test_list = new BTreeList<int, 200>(data_file_name);
+  test_list->Insert(0, 4);
+  test_list->Insert(0, 3);
+  delete test_list;
+  test_list = new BTreeList<int, 200>(data_file_name, 0);
+  EXPECT_EQ(test_list->Size(), 0);
+  delete test_list;
+
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
+}
+
+TEST(constructor_tests, constructor_from_iterators) {
+  std::string data_file_name = "constructor_from_iterators_test_data";
+  std::vector<int> elements = {37, 73, 21, 12};
+  auto* test_list = new BTreeList<int, 200>(data_file_name,
+                                           elements.begin(),
+                                           elements.end());
+  EXPECT_EQ(test_list->Size(), elements.size());
+  for (unsigned i = 0; i < elements.size(); ++i) {
+    EXPECT_EQ(elements[i], (*test_list)[i]);
+  }
+  delete test_list;
+
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,28 +60,31 @@ TEST(constrector_tests, size_argument) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST(simple_tests, insert_test) {
-  auto* test_list = new BTreeList<int>("simple_insert_test_data");
+  std::string data_file_name = "simple_insert_test_data";
+  auto* test_list = new BTreeList<int>(data_file_name);
   test_list->Insert(0, 3);
   EXPECT_EQ(test_list->Size(), 1);
   EXPECT_EQ((*test_list)[0], 3);
 
   delete test_list;
-  EXPECT_EQ(std::filesystem::remove("simple_insert_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(simple_tests, two_inserts) {
-  auto* test_list = new BTreeList<int>("two_inserts_test_data");
+  std::string data_file_name = "two_inserts_test_data";
+  auto* test_list = new BTreeList<int>(data_file_name);
   test_list->Insert(0, 4);
   test_list->Insert(1, 2);
   EXPECT_EQ(test_list->Size(), 2);
   EXPECT_EQ((*test_list)[1], 2);
 
   delete test_list;
-  EXPECT_EQ(std::filesystem::remove("two_inserts_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(simple_tests, insert_plus_set) {
-  auto* test_list = new BTreeList<int>("insert_plus_set_data");
+  std::string data_file_name = "insert_plus_set_data";
+  auto* test_list = new BTreeList<int>(data_file_name);
   test_list->Insert(0, 3);
   test_list->Insert(0, 2);
   test_list->Insert(0, 0);
@@ -63,11 +96,12 @@ TEST(simple_tests, insert_plus_set) {
 
   delete test_list;
 
-  EXPECT_EQ(std::filesystem::remove("insert_plus_set_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(simple_tests, simple_extract) {
-  auto* test_list = new BTreeList<int>("simple_extract_data");
+  std::string data_file_name = "simple_extract_data";
+  auto* test_list = new BTreeList<int>(data_file_name);
   for (int i = 0; i < 5; ++i) {
     test_list->Insert(0, i);
   }
@@ -76,21 +110,23 @@ TEST(simple_tests, simple_extract) {
   EXPECT_EQ(test_list->Size(), 4);
   EXPECT_EQ(extracted, 4);
 
-  EXPECT_EQ(std::filesystem::remove("simple_extract_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(simple_tests, square_brackets) {
-  auto* test_list = new BTreeList<int>("square_brackets_test_data");
+  std::string data_file_name = "square_brackets_test_data";
+  auto* test_list = new BTreeList<int>(data_file_name);
   test_list->Insert(0, 21);
   EXPECT_EQ((*test_list)[0], 21);
   (*test_list)[0] = 12;
   EXPECT_EQ((*test_list)[0], 12);
 
-  EXPECT_EQ(std::filesystem::remove("square_brackets_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(not_simple_tests, inserts) {
-  auto* test_list = new BTreeList<int, 2>("inserts_test_data", 0);
+  std::string data_file_name = "inserts_test_data";
+  auto* test_list = new BTreeList<int, 2>(data_file_name, 0);
   for (int i = 0; i < 16; ++i) {
     test_list->Insert(i, i + 1);
   }
@@ -99,27 +135,27 @@ TEST(not_simple_tests, inserts) {
   }
 
   delete test_list;
-  EXPECT_EQ(std::filesystem::remove("inserts_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(simple_tests, restore_from_file) {
-  std::string file_name = "restore_from_file_test_data";
-  auto* test_list = new BTreeList<int, 200>(file_name);
+  std::string data_file_name = "restore_from_file_test_data";
+  auto* test_list = new BTreeList<int, 200>(data_file_name);
   test_list->Insert(0, 3);
   test_list->Insert(1, 4);
   delete test_list;
-  test_list = new BTreeList<int, 200>(file_name);
+  test_list = new BTreeList<int, 200>(data_file_name);
   EXPECT_EQ(test_list->Size(), 2);
   EXPECT_EQ((*test_list)[0], 3);
   EXPECT_EQ((*test_list)[1], 4);
   delete test_list;
 
-  EXPECT_EQ(std::filesystem::remove(file_name), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(simple_tests, insert_from_iterators) {
-  std::string file_name = "insert_from_iterators_data";
-  auto *test_list = new BTreeList<int, 200>(file_name);
+  std::string data_file_name = "insert_from_iterators_data";
+  auto *test_list = new BTreeList<int, 200>(data_file_name);
   std::vector<int> vector_to_insert = {1, 2, 3, 4, 5};
   test_list->Insert(0, vector_to_insert.begin(), vector_to_insert.end());
   EXPECT_EQ(test_list->Size(), 5);
@@ -127,12 +163,13 @@ TEST(simple_tests, insert_from_iterators) {
 
   delete test_list;
 
-  EXPECT_EQ(std::filesystem::remove(file_name), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(not_simple_tests, many_elements) {
+  std::string data_file_name = "many_elements_test_data";
   std::vector<int> elements = {2, 35, 567, 2, 3, 2, 5, 7, 2, 3, 56, 8, 8, 5, 3, 2, 2, 4, 6, 89, 0, 4, 3, 2, 2, 356, 678, 0, 0, 54};
-  auto* test_list = new BTreeList<int, 10>("many_elements_test_data");
+  auto* test_list = new BTreeList<int, 10>(data_file_name);
   for (auto i: elements) {
     test_list->Insert(test_list->Size(), i);
   }
@@ -140,12 +177,13 @@ TEST(not_simple_tests, many_elements) {
     EXPECT_EQ(elements[i], (*test_list)[i]);
   }
 
-  EXPECT_EQ(std::filesystem::remove("many_elements_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(not_simple_tests, many_extracts) {
+  std::string data_file_name = "many_extracts_test_data";
   std::vector<int> elements;
-  auto* test_list = new BTreeList<int, 20>("many_extracts_test_data");
+  auto* test_list = new BTreeList<int, 20>(data_file_name);
   for (unsigned i = 0; i < 200; ++i) {
     elements.push_back(static_cast<int>(i));
     test_list->Insert(test_list->Size(), static_cast<int>(i));
@@ -163,13 +201,13 @@ TEST(not_simple_tests, many_extracts) {
   }
 
   delete test_list;
-  EXPECT_EQ(std::filesystem::remove("many_extracts_test_data"), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }
 
 TEST(not_simple_extracts, random_extracts) {
+  std::string data_file_name = "random_extracts_test_data";
   std::vector<int> elements = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
-  std::string filename = "random_extracts_test_data";
-  auto* test_list = new BTreeList<int, 3>(filename);
+  auto* test_list = new BTreeList<int, 3>(data_file_name);
   test_list->Insert(0, elements.begin(), elements.end());
   EXPECT_EQ(test_list->Extract(5), 6);  // 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13
   EXPECT_EQ(test_list->Extract(0), 1);  // 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13
@@ -185,5 +223,5 @@ TEST(not_simple_extracts, random_extracts) {
   EXPECT_EQ(test_list->Extract(0), 10);  // 10
   EXPECT_EQ(test_list->Size(), 1);
 
-  EXPECT_EQ(std::filesystem::remove(filename), true);
+  EXPECT_EQ(std::filesystem::remove(data_file_name), true);
 }

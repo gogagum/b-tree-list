@@ -91,7 +91,7 @@ FileSavingManager<ElementType, T>::FileSavingManager(
   // Prepare opening
   size_t page_size = boost::interprocess::mapped_region::get_page_size();
   _new_file_flag = !std::filesystem::exists(_file_params_ptr->path);
-  if (file_creation_expected && _new_file_flag) {
+  if (file_creation_expected || _new_file_flag) {
     std::filesystem::remove(_file_params_ptr->path);
     _new_file_flag = true;
   }
